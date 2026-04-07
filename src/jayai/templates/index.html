@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ app_name }}</title>
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --panel: #fffdf8;
+      --line: #d7cbbb;
+      --ink: #1d1a16;
+      --accent: #0f766e;
+      --muted: #6f665d;
+      --danger: #9f1239;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Pretendard", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(15,118,110,0.12), transparent 28%),
+        linear-gradient(180deg, #efe7d7 0%, var(--bg) 100%);
+    }
+    .shell {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+    .hero, .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: 0 18px 40px rgba(29,26,22,0.06);
+    }
+    .hero h1, .panel h2 {
+      margin: 0 0 10px;
+      font-size: 1.35rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 18px;
+    }
+    .stack {
+      display: grid;
+      gap: 14px;
+    }
+    .row {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    input, textarea, button {
+      font: inherit;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    button {
+      padding: 11px 14px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #e7ddd0;
+      color: var(--ink);
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+    .item {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: #fff;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 0.88rem;
+      background: #171717;
+      color: #eef2f2;
+      padding: 14px;
+      border-radius: 14px;
+      min-height: 180px;
+    }
+    .danger { color: var(--danger); }
+    @media (max-width: 880px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <h1>{{ app_name }}</h1>
+      <div class="meta">중앙 서버 + 로컬 러너 1차 뼈대. 프로젝트, 세션, 워크스페이스 매핑, 기기 상태를 관리하는 기반 화면.</div>
+    </section>
+
+    <section class="grid">
+      <div class="stack">
+        <section class="panel">
+          <h2>프로젝트 생성</h2>
+          <div class="row"><input id="project-slug" placeholder="slug 예: ai-macro"></div>
+          <div class="row"><input id="project-title" placeholder="표시 이름"></div>
+          <div class="row"><input id="project-repo" placeholder="repo url (선택)"></div>
+          <button id="create-project">프로젝트 추가</button>
+        </section>
+
+        <section class="panel">
+          <h2>프로젝트 목록</h2>
+          <div class="list" id="projects"></div>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="panel">
+          <h2>러너 점검</h2>
+          <div class="row"><input id="probe-workdir" placeholder="workdir (비우면 현재 서버 cwd)"></div>
+          <button id="probe-runner">설치/로그인 확인</button>
+        </section>
+
+        <section class="panel">
+          <h2>워크스페이스 스캔</h2>
+          <div class="row"><input id="scan-path" placeholder="로컬 경로"></div>
+          <button id="scan-workspace">경로 확인</button>
+        </section>
+
+        <section class="panel">
+          <h2>결과</h2>
+          <pre id="output">아직 실행 안 함.</pre>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const output = document.getElementById("output");
+    const projectsEl = document.getElementById("projects");
+
+    function show(value) {
+      output.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    }
+
+    async function request(url, options = {}) {
+      const response = await fetch(url, {
+        headers: { "Content-Type": "application/json" },
+        ...options,
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || response.statusText);
+      }
+      return data;
+    }
+
+    async function loadProjects() {
+      const projects = await request("/api/projects");
+      if (!projects.length) {
+        projectsEl.innerHTML = '<div class="meta">프로젝트 없음.</div>';
+        return;
+      }
+      projectsEl.innerHTML = projects.map(project => `
+        <article class="item">
+          <strong>${project.title}</strong>
+          <div class="meta">${project.slug}</div>
+          <div class="meta">${project.repo_url || "repo url 없음"}</div>
+        </article>
+      `).join("");
+    }
+
+    document.getElementById("create-project").addEventListener("click", async () => {
+      try {
+        const payload = {
+          slug: document.getElementById("project-slug").value.trim(),
+          title: document.getElementById("project-title").value.trim(),
+          repo_url: document.getElementById("project-repo").value.trim() || null,
+          default_branch: "main",
+          docs_globs: ["AGENTS.md", "README.md", "CLAUDE.md", "docs/**/*.md"],
+        };
+        show(await request("/api/projects", { method: "POST", body: JSON.stringify(payload) }));
+        await loadProjects();
+      } catch (error) {
+        show(String(error));
+      }
+    });
+
+    document.getElementById("probe-runner").addEventListener("click", async () => {
+      try {
+        show(await request("/api/runner/probe", {
+          method: "POST",
+          body: JSON.stringify({ workdir: document.getElementById("probe-workdir").value.trim() || null }),
+        }));
+      } catch (error) {
+        show(String(error));
+      }
+    });
+
+    document.getElementById("scan-workspace").addEventListener("click", async () => {
+      try {
+        show(await request("/api/runner/scan-workspace", {
+          method: "POST",
+          body: JSON.stringify({ path: document.getElementById("scan-path").value.trim() }),
+        }));
+      } catch (error) {
+        show(String(error));
+      }
+    });
+
+    loadProjects().catch(error => show(String(error)));
+  </script>
+</body>
+</html>

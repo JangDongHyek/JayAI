@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "jayai"
+version = "0.1.0"
+description = "Project-aware local orchestrator for Codex and Claude."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115.0",
+  "jinja2>=3.1.0",
+  "pydantic>=2.11.0",
+  "sqlalchemy>=2.0.0",
+  "uvicorn>=0.35.0",
+]
+
+[project.scripts]
+jayai = "jayai.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jayai"]
