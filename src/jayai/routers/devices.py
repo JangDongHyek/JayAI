@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import platform
+import socket
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,6 +14,15 @@ from ..schemas import DeviceRead, DeviceRegister
 
 
 router = APIRouter(prefix="/api/devices", tags=["devices"])
+
+
+def _device_payload() -> DeviceRegister:
+    return DeviceRegister(
+        name=socket.gethostname().lower(),
+        hostname=socket.gethostname(),
+        platform=platform.platform(),
+        is_server=False,
+    )
 
 
 @router.get("", response_model=list[DeviceRead])
@@ -32,3 +44,9 @@ def register_device(payload: DeviceRegister, db: Session = Depends(get_db)) -> D
     db.commit()
     db.refresh(device)
     return device
+
+
+@router.post("/local", response_model=DeviceRead, status_code=status.HTTP_201_CREATED)
+def register_local_device(db: Session = Depends(get_db)) -> Device:
+    payload = _device_payload()
+    return register_device(payload, db)

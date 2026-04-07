@@ -21,13 +21,28 @@ def _default_sqlite_url() -> str:
 class Settings:
     app_name: str
     database_url: str
+    data_dir: Path
+    runs_dir: Path
+    local_config_path: Path
     templates_dir: Path
+    base_path: str
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    base_path = os.getenv("JAYAI_BASE_PATH", "").strip()
+    if base_path in {"", "/"}:
+        base_path = ""
+    elif not base_path.startswith("/"):
+        base_path = f"/{base_path}"
+    base_path = base_path.rstrip("/")
     return Settings(
         app_name=os.getenv("JAYAI_APP_NAME", "JayAI"),
         database_url=os.getenv("JAYAI_DATABASE_URL", _default_sqlite_url()),
+        data_dir=DATA_DIR,
+        runs_dir=DATA_DIR / "runs",
+        local_config_path=DATA_DIR / "local-config.json",
         templates_dir=TEMPLATES_DIR,
+        base_path=base_path,
     )

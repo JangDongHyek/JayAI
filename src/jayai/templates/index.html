@@ -1,164 +1,504 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ app_name }}</title>
   <style>
     :root {
-      --bg: #f5f1e8;
-      --panel: #fffdf8;
-      --line: #d7cbbb;
-      --ink: #1d1a16;
-      --accent: #0f766e;
-      --muted: #6f665d;
-      --danger: #9f1239;
+      --bg: #f2ede4;
+      --panel: rgba(255, 251, 244, 0.9);
+      --line: rgba(91, 73, 47, 0.18);
+      --ink: #1f1a15;
+      --muted: #665f56;
+      --accent: #0d7664;
+      --accent-soft: rgba(13, 118, 100, 0.12);
+      --accent-strong: #0a5a4c;
+      --codex: #1148a0;
+      --claude: #8a4d12;
+      --jayai: #0d7664;
+      --danger: #a11b3a;
+      --shadow: 0 24px 60px rgba(31, 26, 21, 0.08);
     }
+
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
-      font-family: "Segoe UI", "Pretendard", sans-serif;
+      min-height: 100vh;
       color: var(--ink);
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
       background:
-        radial-gradient(circle at top left, rgba(15,118,110,0.12), transparent 28%),
-        linear-gradient(180deg, #efe7d7 0%, var(--bg) 100%);
+        radial-gradient(circle at 15% 10%, rgba(13, 118, 100, 0.16), transparent 26%),
+        radial-gradient(circle at 88% 0%, rgba(17, 72, 160, 0.14), transparent 22%),
+        linear-gradient(180deg, #e8dfd1 0%, var(--bg) 50%, #efe8dc 100%);
     }
-    .shell {
-      max-width: 1180px;
+
+    button, input, textarea { font: inherit; }
+
+    .app {
+      max-width: 1480px;
       margin: 0 auto;
-      padding: 24px;
+      padding: 22px;
       display: grid;
       gap: 18px;
     }
-    .hero, .panel {
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 18px;
+    }
+
+    .card {
       background: var(--panel);
+      backdrop-filter: blur(18px);
       border: 1px solid var(--line);
-      border-radius: 18px;
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-main { padding: 24px 26px; }
+    .hero-main h1 {
+      margin: 14px 0 0;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 0.96;
+      letter-spacing: -0.04em;
+    }
+
+    .hero-main p {
+      margin: 14px 0 0;
+      max-width: 58ch;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.96rem;
+    }
+
+    .eyebrow,
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+    }
+
+    .hero-side {
       padding: 20px;
-      box-shadow: 0 18px 40px rgba(29,26,22,0.06);
-    }
-    .hero h1, .panel h2 {
-      margin: 0 0 10px;
-      font-size: 1.35rem;
-    }
-    .grid {
       display: grid;
-      grid-template-columns: 1.2fr 1fr;
-      gap: 18px;
+      gap: 12px;
+      align-content: start;
     }
-    .stack {
+
+    .mini {
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.66);
+    }
+
+    .mini label,
+    .row label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 340px minmax(0, 1fr);
+      gap: 18px;
+      min-height: 72vh;
+    }
+
+    .column {
+      padding: 18px;
       display: grid;
       gap: 14px;
+      align-content: start;
     }
-    .row {
-      display: grid;
-      gap: 8px;
-      margin-bottom: 10px;
+
+    .section-head,
+    .chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
     }
-    input, textarea, button {
-      font: inherit;
+
+    .section-head h2,
+    .chat-header h2 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
     }
-    input, textarea {
-      width: 100%;
-      padding: 11px 12px;
-      border-radius: 12px;
-      border: 1px solid var(--line);
-      background: #fff;
-    }
-    button {
-      padding: 11px 14px;
-      border: 0;
-      border-radius: 999px;
-      background: var(--accent);
-      color: white;
-      cursor: pointer;
-    }
-    button.secondary {
-      background: #e7ddd0;
-      color: var(--ink);
-    }
-    .meta {
-      color: var(--muted);
-      font-size: 0.92rem;
-    }
-    .list {
+
+    .row,
+    .project-form,
+    .workspace-tools,
+    .conversation-tools,
+    .run-shell {
       display: grid;
       gap: 10px;
     }
-    .item {
-      border: 1px solid var(--line);
+
+    input, textarea {
+      width: 100%;
+      padding: 12px 13px;
       border-radius: 14px;
-      padding: 12px;
-      background: #fff;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.94);
+      color: var(--ink);
     }
+
+    textarea {
+      resize: vertical;
+      min-height: 110px;
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 11px 15px;
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+    }
+
+    button.secondary {
+      background: rgba(255, 255, 255, 0.8);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+      max-height: 360px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .item {
+      padding: 14px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.7);
+      display: grid;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .item.active {
+      border-color: rgba(13, 118, 100, 0.46);
+      background: linear-gradient(180deg, rgba(13,118,100,0.12), rgba(255,255,255,0.92));
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 1.45;
+    }
+
+    .chat-card {
+      padding: 18px;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    .messages {
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.7);
+      padding: 14px;
+      overflow: auto;
+      min-height: 420px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .bubble {
+      max-width: min(78ch, 90%);
+      padding: 13px 14px;
+      border-radius: 18px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .bubble.user {
+      justify-self: end;
+      background: linear-gradient(180deg, #131313, #272727);
+      color: #f6f2eb;
+    }
+
+    .bubble.assistant {
+      justify-self: start;
+      background: rgba(255,255,255,0.94);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    .bubble.codex { border-left: 4px solid var(--codex); }
+    .bubble.claude { border-left: 4px solid var(--claude); }
+    .bubble.jayai { border-left: 4px solid var(--jayai); }
+    .bubble.error { border-left: 4px solid var(--danger); }
+
+    .bubble-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+    }
+
+    .agent-badge {
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(13,118,100,0.1);
+      color: var(--accent-strong);
+    }
+
+    .agent-codex { background: rgba(17,72,160,0.1); color: var(--codex); }
+    .agent-claude { background: rgba(138,77,18,0.1); color: var(--claude); }
+    .agent-jayai { background: rgba(13,118,100,0.1); color: var(--jayai); }
+
+    .composer-note {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .composer-note span {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      background: rgba(255,255,255,0.8);
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    .run-shell {
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.68);
+      padding: 14px;
+    }
+
     pre {
       margin: 0;
       white-space: pre-wrap;
       word-break: break-word;
       font-family: "Cascadia Code", "Consolas", monospace;
-      font-size: 0.88rem;
-      background: #171717;
-      color: #eef2f2;
-      padding: 14px;
-      border-radius: 14px;
-      min-height: 180px;
+      font-size: 0.86rem;
+      line-height: 1.52;
+      color: #f3ece3;
+      background: linear-gradient(180deg, #1c1d1f, #111214);
+      border-radius: 18px;
+      padding: 16px;
+      min-height: 160px;
     }
-    .danger { color: var(--danger); }
-    @media (max-width: 880px) {
-      .grid { grid-template-columns: 1fr; }
+
+    .empty {
+      padding: 16px;
+      border: 1px dashed rgba(91, 73, 47, 0.32);
+      border-radius: 18px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.56);
+    }
+
+    @media (max-width: 1220px) {
+      .layout { grid-template-columns: 1fr 1fr; }
+      .chat-card { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 900px) {
+      .hero, .layout { grid-template-columns: 1fr; }
+      .app { padding: 14px; }
     }
   </style>
 </head>
 <body>
-  <main class="shell">
+  <main class="app">
     <section class="hero">
-      <h1>{{ app_name }}</h1>
-      <div class="meta">중앙 서버 + 로컬 러너 1차 뼈대. 프로젝트, 세션, 워크스페이스 매핑, 기기 상태를 관리하는 기반 화면.</div>
+      <section class="card hero-main">
+        <span class="eyebrow">Project Aware Multi-Agent</span>
+        <h1>{{ app_name }}</h1>
+        <p>Codex reads project files first. Claude reviews and challenges. Projects, workspace bindings, conversations, and run logs stay on one screen.</p>
+      </section>
+      <section class="card hero-side">
+        <div class="mini">
+          <label>Server API</label>
+          <div class="row">
+            <input id="server-url" placeholder="http://43.203.252.40:8000 or https://host/path">
+          </div>
+          <div id="server-meta" class="meta">No server configured</div>
+        </div>
+        <div class="mini">
+          <label>Local Device</label>
+          <div id="device-meta" class="meta">Checking...</div>
+        </div>
+        <div class="mini">
+          <label>Runner Status</label>
+          <div id="runner-meta" class="meta">Not checked yet</div>
+        </div>
+        <div class="actions">
+          <button id="save-server" class="secondary">Save Server</button>
+          <button id="probe-runner">Check CLIs</button>
+          <button id="refresh-all" class="secondary">Refresh</button>
+        </div>
+      </section>
     </section>
 
-    <section class="grid">
-      <div class="stack">
-        <section class="panel">
-          <h2>프로젝트 생성</h2>
-          <div class="row"><input id="project-slug" placeholder="slug 예: ai-macro"></div>
-          <div class="row"><input id="project-title" placeholder="표시 이름"></div>
-          <div class="row"><input id="project-repo" placeholder="repo url (선택)"></div>
-          <button id="create-project">프로젝트 추가</button>
+    <section class="layout">
+      <section class="card column">
+        <div class="section-head">
+          <h2>Projects</h2>
+          <span class="pill">repo + docs + sessions</span>
+        </div>
+        <section class="project-form">
+          <div class="row">
+            <label for="project-slug">Slug</label>
+            <input id="project-slug" placeholder="ai-macro">
+          </div>
+          <div class="row">
+            <label for="project-title">Title</label>
+            <input id="project-title" placeholder="AI Macro">
+          </div>
+          <div class="row">
+            <label for="project-repo">Repo URL</label>
+            <input id="project-repo" placeholder="git@github.com:... or https://...">
+          </div>
+          <div class="actions">
+            <button id="create-project">Add Project</button>
+          </div>
         </section>
+        <div class="list" id="projects"></div>
+      </section>
 
-        <section class="panel">
-          <h2>프로젝트 목록</h2>
-          <div class="list" id="projects"></div>
+      <section class="card column">
+        <div class="section-head">
+          <h2>Workspace / Sessions</h2>
+          <span class="pill">binding + resume</span>
+        </div>
+        <section class="workspace-tools">
+          <div class="row">
+            <label for="workspace-path">Workspace Path</label>
+            <input id="workspace-path" placeholder="C:\path\to\repo">
+          </div>
+          <div class="actions">
+            <button id="save-binding">Save Path</button>
+            <button id="scan-workspace" class="secondary">Scan</button>
+          </div>
+          <div id="workspace-meta" class="meta">Select a project first</div>
         </section>
-      </div>
+        <section class="conversation-tools">
+          <div class="section-head">
+            <h2>Conversations</h2>
+            <button id="new-conversation" class="secondary">New</button>
+          </div>
+          <div class="list" id="conversations"></div>
+        </section>
+        <section class="run-shell">
+          <div class="section-head">
+            <h2>Last Run</h2>
+            <span class="pill" id="run-strategy">idle</span>
+          </div>
+          <div id="run-meta" class="meta">No run yet</div>
+          <pre id="run-output">Recent run output appears here.</pre>
+        </section>
+      </section>
 
-      <div class="stack">
-        <section class="panel">
-          <h2>러너 점검</h2>
-          <div class="row"><input id="probe-workdir" placeholder="workdir (비우면 현재 서버 cwd)"></div>
-          <button id="probe-runner">설치/로그인 확인</button>
-        </section>
-
-        <section class="panel">
-          <h2>워크스페이스 스캔</h2>
-          <div class="row"><input id="scan-path" placeholder="로컬 경로"></div>
-          <button id="scan-workspace">경로 확인</button>
-        </section>
-
-        <section class="panel">
-          <h2>결과</h2>
-          <pre id="output">아직 실행 안 함.</pre>
-        </section>
-      </div>
+      <section class="card chat-card">
+        <div class="chat-header">
+          <div>
+            <h2 id="chat-title">No conversation selected</h2>
+            <div id="chat-subtitle" class="meta">Select a project and create a conversation.</div>
+          </div>
+          <span class="pill" id="project-pill">none</span>
+        </div>
+        <div class="composer-note">
+          <span>git clone / pull / status auto-detect</span>
+          <span>Codex first for heavy context</span>
+          <span>Claude as reviewer</span>
+        </div>
+        <div class="messages" id="messages">
+          <div class="empty">Select a project on the left and create a conversation.</div>
+        </div>
+        <div class="row">
+          <label for="prompt-input">Prompt</label>
+          <textarea id="prompt-input" placeholder="Read README and summarize the core structure in 5 lines&#10;Clone the repo and show git status"></textarea>
+        </div>
+        <div class="actions">
+          <button id="send-prompt">Run</button>
+          <button id="clear-prompt" class="secondary">Clear</button>
+        </div>
+      </section>
     </section>
   </main>
 
   <script>
-    const output = document.getElementById("output");
-    const projectsEl = document.getElementById("projects");
+    const basePath = {{ (base_path or '')|tojson }};
+    const apiBase = `${basePath}/api`;
 
-    function show(value) {
-      output.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    const state = {
+      device: null,
+      projects: [],
+      activeProjectId: null,
+      conversations: [],
+      activeConversationId: null,
+      messages: [],
+      lastRun: null,
+    };
+
+    const elements = {
+      projects: document.getElementById("projects"),
+      conversations: document.getElementById("conversations"),
+      messages: document.getElementById("messages"),
+      runOutput: document.getElementById("run-output"),
+      runMeta: document.getElementById("run-meta"),
+      runStrategy: document.getElementById("run-strategy"),
+      workspacePath: document.getElementById("workspace-path"),
+      workspaceMeta: document.getElementById("workspace-meta"),
+      promptInput: document.getElementById("prompt-input"),
+      chatTitle: document.getElementById("chat-title"),
+      chatSubtitle: document.getElementById("chat-subtitle"),
+      projectPill: document.getElementById("project-pill"),
+      serverUrl: document.getElementById("server-url"),
+      serverMeta: document.getElementById("server-meta"),
+      deviceMeta: document.getElementById("device-meta"),
+      runnerMeta: document.getElementById("runner-meta"),
+      sendPrompt: document.getElementById("send-prompt"),
+    };
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
     }
 
     async function request(url, options = {}) {
@@ -173,60 +513,386 @@
       return data;
     }
 
-    async function loadProjects() {
-      const projects = await request("/api/projects");
-      if (!projects.length) {
-        projectsEl.innerHTML = '<div class="meta">프로젝트 없음.</div>';
-        return;
-      }
-      projectsEl.innerHTML = projects.map(project => `
-        <article class="item">
-          <strong>${project.title}</strong>
-          <div class="meta">${project.slug}</div>
-          <div class="meta">${project.repo_url || "repo url 없음"}</div>
-        </article>
-      `).join("");
+    async function loadLocalStatus() {
+      const config = await request(`${apiBase}/local/config`);
+      const status = await request(`${apiBase}/local/status`);
+      elements.serverUrl.value = config.server_url || "";
+      elements.serverMeta.textContent = status.server_url
+        ? `${status.server_url} | ${status.server_reachable ? "reachable" : "unreachable"}`
+        : "No server configured";
+      elements.deviceMeta.textContent = `${status.local_hostname} | ${status.local_platform}`;
     }
 
-    document.getElementById("create-project").addEventListener("click", async () => {
-      try {
-        const payload = {
-          slug: document.getElementById("project-slug").value.trim(),
-          title: document.getElementById("project-title").value.trim(),
-          repo_url: document.getElementById("project-repo").value.trim() || null,
-          default_branch: "main",
-          docs_globs: ["AGENTS.md", "README.md", "CLAUDE.md", "docs/**/*.md"],
-        };
-        show(await request("/api/projects", { method: "POST", body: JSON.stringify(payload) }));
-        await loadProjects();
-      } catch (error) {
-        show(String(error));
+    async function saveServerUrl() {
+      const serverUrl = elements.serverUrl.value.trim();
+      if (!serverUrl) {
+        throw new Error("server url required");
       }
-    });
+      const saved = await request(`${apiBase}/local/config`, {
+        method: "POST",
+        body: JSON.stringify({ server_url: serverUrl }),
+      });
+      elements.serverUrl.value = saved.server_url;
+      await loadLocalStatus();
+    }
 
-    document.getElementById("probe-runner").addEventListener("click", async () => {
+    function activeProject() {
+      return state.projects.find((project) => project.id === state.activeProjectId) || null;
+    }
+
+    function activeConversation() {
+      return state.conversations.find((conversation) => conversation.id === state.activeConversationId) || null;
+    }
+
+    function showRunOutput(value, meta = "", strategy = "idle") {
+      elements.runOutput.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+      elements.runMeta.textContent = meta || "No run info";
+      elements.runStrategy.textContent = strategy;
+    }
+
+    function renderProjects() {
+      if (!state.projects.length) {
+        elements.projects.innerHTML = '<div class="empty">No projects yet.</div>';
+        elements.projectPill.textContent = "none";
+        return;
+      }
+      elements.projects.innerHTML = state.projects.map((project) => `
+        <article class="item ${project.id === state.activeProjectId ? "active" : ""}" data-project-id="${project.id}">
+          <strong>${escapeHtml(project.title)}</strong>
+          <div class="meta">${escapeHtml(project.slug)}</div>
+          <div class="meta">${escapeHtml(project.repo_url || "no repo url")}</div>
+        </article>
+      `).join("");
+      elements.projects.querySelectorAll("[data-project-id]").forEach((node) => {
+        node.addEventListener("click", () => selectProject(Number(node.dataset.projectId)));
+      });
+      const project = activeProject();
+      elements.projectPill.textContent = project ? project.slug : "none";
+    }
+
+    function renderConversations() {
+      if (!state.activeProjectId) {
+        elements.conversations.innerHTML = '<div class="empty">Select a project first.</div>';
+        return;
+      }
+      if (!state.conversations.length) {
+        elements.conversations.innerHTML = '<div class="empty">No conversations yet.</div>';
+        return;
+      }
+      elements.conversations.innerHTML = state.conversations.map((conversation) => `
+        <article class="item ${conversation.id === state.activeConversationId ? "active" : ""}" data-conversation-id="${conversation.id}">
+          <strong>${escapeHtml(conversation.title)}</strong>
+          <div class="meta">status: ${escapeHtml(conversation.status)}</div>
+          <div class="meta">${new Date(conversation.updated_at).toLocaleString()}</div>
+        </article>
+      `).join("");
+      elements.conversations.querySelectorAll("[data-conversation-id]").forEach((node) => {
+        node.addEventListener("click", () => selectConversation(Number(node.dataset.conversationId)));
+      });
+    }
+
+    function renderMessages() {
+      const project = activeProject();
+      const conversation = activeConversation();
+      elements.chatTitle.textContent = conversation ? conversation.title : "No conversation selected";
+      elements.chatSubtitle.textContent = project
+        ? `${project.title} | ${elements.workspacePath.value.trim() || "no workspace path"}`
+        : "Select a project and create a conversation.";
+
+      if (!state.messages.length) {
+        elements.messages.innerHTML = '<div class="empty">No messages yet.</div>';
+        return;
+      }
+
+      elements.messages.innerHTML = state.messages.map((message) => {
+        const agent = message.agent || (message.role === "user" ? "user" : "assistant");
+        const agentClass = agent === "codex"
+          ? "agent-codex"
+          : agent === "claude"
+            ? "agent-claude"
+            : agent === "jayai"
+              ? "agent-jayai"
+              : "";
+        const bubbleClass = message.role === "user"
+          ? "user"
+          : agent === "codex"
+            ? "assistant codex"
+            : agent === "claude"
+              ? "assistant claude"
+              : agent === "jayai"
+                ? "assistant jayai"
+                : "assistant";
+        return `
+          <article class="bubble ${bubbleClass}">
+            <div class="bubble-head">
+              <span class="agent-badge ${agentClass}">${escapeHtml(agent)}</span>
+              <span class="meta">${new Date(message.created_at).toLocaleString()}</span>
+            </div>
+            <div>${escapeHtml(message.content)}</div>
+          </article>
+        `;
+      }).join("");
+      elements.messages.scrollTop = elements.messages.scrollHeight;
+    }
+
+    async function registerLocalDevice() {
+      state.device = await request(`${apiBase}/devices/local`, { method: "POST", body: "{}" });
+    }
+
+    async function probeRunner() {
+      const workdir = elements.workspacePath.value.trim() || null;
+      const result = await request(`${apiBase}/runner/probe`, {
+        method: "POST",
+        body: JSON.stringify({ workdir }),
+      });
+      const toolSummary = result.tools
+        .map((tool) => `${tool.name}:${tool.installed ? "ok" : "missing"}${tool.auth_state ? `/${tool.auth_state}` : ""}`)
+        .join(" | ");
+      elements.runnerMeta.textContent = `${result.hostname} | ${toolSummary}`;
+      showRunOutput(result, "CLI probe result", "probe");
+    }
+
+    async function scanWorkspace() {
+      const path = elements.workspacePath.value.trim();
+      if (!path) {
+        throw new Error("workspace path required");
+      }
+      const result = await request(`${apiBase}/runner/scan-workspace`, {
+        method: "POST",
+        body: JSON.stringify({ path }),
+      });
+      elements.workspaceMeta.textContent = result.exists
+        ? `exists | git:${result.is_git_repo ? "yes" : "no"} | docs:${result.context_docs.length}`
+        : "path not found";
+      showRunOutput(result, "Workspace scan result", "scan");
+    }
+
+    async function loadProjects(preferredProjectId = null) {
+      state.projects = await request(`${apiBase}/projects`);
+      if (!state.projects.length) {
+        state.activeProjectId = null;
+        state.conversations = [];
+        state.activeConversationId = null;
+        state.messages = [];
+        renderProjects();
+        renderConversations();
+        renderMessages();
+        return;
+      }
+      const validTarget = preferredProjectId && state.projects.some((project) => project.id === preferredProjectId)
+        ? preferredProjectId
+        : state.activeProjectId && state.projects.some((project) => project.id === state.activeProjectId)
+          ? state.activeProjectId
+          : state.projects[0].id;
+      state.activeProjectId = validTarget;
+      renderProjects();
+      await selectProject(validTarget);
+    }
+
+    async function loadBindings(projectId) {
+      const bindings = await request(`${apiBase}/projects/${projectId}/bindings`);
+      const ownBinding = state.device
+        ? bindings.find((binding) => binding.device_id === state.device.id)
+        : null;
+      const chosen = ownBinding || bindings[0] || null;
+      elements.workspacePath.value = chosen ? chosen.local_path : "";
+      elements.workspaceMeta.textContent = chosen
+        ? `saved path: ${chosen.local_path}`
+        : "no saved path";
+    }
+
+    async function loadConversations(projectId, preferredConversationId = null) {
+      state.conversations = await request(`${apiBase}/projects/${projectId}/conversations`);
+      renderConversations();
+      if (!state.conversations.length) {
+        state.activeConversationId = null;
+        state.messages = [];
+        renderMessages();
+        return;
+      }
+      const target = preferredConversationId && state.conversations.some((item) => item.id === preferredConversationId)
+        ? preferredConversationId
+        : state.activeConversationId && state.conversations.some((item) => item.id === state.activeConversationId)
+          ? state.activeConversationId
+          : state.conversations[0].id;
+      await selectConversation(target);
+    }
+
+    async function selectProject(projectId) {
+      state.activeProjectId = projectId;
+      state.activeConversationId = null;
+      state.messages = [];
+      renderProjects();
+      renderMessages();
+      await Promise.all([loadBindings(projectId), loadConversations(projectId)]);
+    }
+
+    async function selectConversation(conversationId) {
+      state.activeConversationId = conversationId;
+      state.messages = await request(`${apiBase}/projects/conversations/${conversationId}/messages`);
+      renderConversations();
+      renderMessages();
+    }
+
+    async function createProject() {
+      const payload = {
+        slug: document.getElementById("project-slug").value.trim(),
+        title: document.getElementById("project-title").value.trim(),
+        repo_url: document.getElementById("project-repo").value.trim() || null,
+        default_branch: "main",
+        docs_globs: ["AGENTS.md", "README.md", "README*.md", "CLAUDE.md", "docs/**/*.md"],
+      };
+      const project = await request(`${apiBase}/projects`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      document.getElementById("project-slug").value = "";
+      document.getElementById("project-title").value = "";
+      document.getElementById("project-repo").value = "";
+      await loadProjects(project.id);
+    }
+
+    async function saveBinding() {
+      const project = activeProject();
+      if (!project) {
+        throw new Error("project required");
+      }
+      if (!state.device) {
+        throw new Error("device registration required");
+      }
+      const localPath = elements.workspacePath.value.trim();
+      if (!localPath) {
+        throw new Error("workspace path required");
+      }
+      await request(`${apiBase}/projects/${project.id}/bindings`, {
+        method: "POST",
+        body: JSON.stringify({
+          project_id: project.id,
+          device_id: state.device.id,
+          local_path: localPath,
+          preferred_branch: project.default_branch,
+        }),
+      });
+      elements.workspaceMeta.textContent = `path saved: ${localPath}`;
+    }
+
+    async function createConversation(title = null) {
+      const project = activeProject();
+      if (!project) {
+        throw new Error("project required");
+      }
+      const payload = {
+        title: title || `Conversation ${new Date().toLocaleString()}`,
+      };
+      const conversation = await request(`${apiBase}/projects/${project.id}/conversations`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      await loadConversations(project.id, conversation.id);
+      return conversation;
+    }
+
+    async function ensureConversationForPrompt(prompt) {
+      const conversation = activeConversation();
+      if (conversation) {
+        return conversation;
+      }
+      const title = prompt.replace(/\s+/g, " ").trim().slice(0, 40) || "Conversation";
+      return createConversation(title);
+    }
+
+    async function sendPrompt() {
+      const prompt = elements.promptInput.value.trim();
+      if (!prompt) {
+        throw new Error("prompt is empty");
+      }
+      const project = activeProject();
+      if (!project) {
+        throw new Error("project required");
+      }
+      const conversation = await ensureConversationForPrompt(prompt);
+      const workspacePath = elements.workspacePath.value.trim() || null;
+
+      elements.sendPrompt.disabled = true;
+      showRunOutput("Running...", `${project.title} | ${workspacePath || "no workspace path"}`, "running");
       try {
-        show(await request("/api/runner/probe", {
+        const result = await request(`${apiBase}/projects/conversations/${conversation.id}/execute`, {
           method: "POST",
-          body: JSON.stringify({ workdir: document.getElementById("probe-workdir").value.trim() || null }),
-        }));
-      } catch (error) {
-        show(String(error));
+          body: JSON.stringify({
+            content: prompt,
+            workspace_path: workspacePath,
+          }),
+        });
+        elements.promptInput.value = "";
+        state.lastRun = result;
+        await loadConversations(project.id, conversation.id);
+        await selectConversation(conversation.id);
+        showRunOutput(
+          result.messages.map((message) => `[${message.agent || message.role}]\n${message.content}`).join("\n\n"),
+          `strategy:${result.strategy} | workspace:${result.workspace_path} | artifacts:${result.artifact_dir || "none"}`,
+          result.strategy,
+        );
+      } finally {
+        elements.sendPrompt.disabled = false;
+      }
+    }
+
+    async function refreshAll() {
+      await loadLocalStatus();
+      if (!elements.serverUrl.value.trim()) {
+        state.device = null;
+        state.projects = [];
+        state.conversations = [];
+        state.activeProjectId = null;
+        state.activeConversationId = null;
+        state.messages = [];
+        renderProjects();
+        renderConversations();
+        renderMessages();
+        return;
+      }
+      await registerLocalDevice();
+      await loadProjects();
+      renderMessages();
+    }
+
+    document.getElementById("create-project").addEventListener("click", () => {
+      createProject().catch((error) => showRunOutput(String(error), "Project create failed", "error"));
+    });
+    document.getElementById("save-binding").addEventListener("click", () => {
+      saveBinding().then(() => scanWorkspace()).catch((error) => showRunOutput(String(error), "Save path failed", "error"));
+    });
+    document.getElementById("scan-workspace").addEventListener("click", () => {
+      scanWorkspace().catch((error) => showRunOutput(String(error), "Scan failed", "error"));
+    });
+    document.getElementById("new-conversation").addEventListener("click", () => {
+      createConversation().catch((error) => showRunOutput(String(error), "Conversation create failed", "error"));
+    });
+    document.getElementById("probe-runner").addEventListener("click", () => {
+      probeRunner().catch((error) => showRunOutput(String(error), "Probe failed", "error"));
+    });
+    document.getElementById("save-server").addEventListener("click", () => {
+      saveServerUrl()
+        .then(() => refreshAll())
+        .catch((error) => showRunOutput(String(error), "Save server failed", "error"));
+    });
+    document.getElementById("refresh-all").addEventListener("click", () => {
+      refreshAll().catch((error) => showRunOutput(String(error), "Refresh failed", "error"));
+    });
+    document.getElementById("send-prompt").addEventListener("click", () => {
+      sendPrompt().catch((error) => showRunOutput(String(error), "Run failed", "error"));
+    });
+    document.getElementById("clear-prompt").addEventListener("click", () => {
+      elements.promptInput.value = "";
+    });
+    elements.promptInput.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        sendPrompt().catch((error) => showRunOutput(String(error), "Run failed", "error"));
       }
     });
 
-    document.getElementById("scan-workspace").addEventListener("click", async () => {
-      try {
-        show(await request("/api/runner/scan-workspace", {
-          method: "POST",
-          body: JSON.stringify({ path: document.getElementById("scan-path").value.trim() }),
-        }));
-      } catch (error) {
-        show(String(error));
-      }
-    });
-
-    loadProjects().catch(error => show(String(error)));
+    refreshAll().then(() => probeRunner()).catch((error) => showRunOutput(String(error), "Init failed", "error"));
   </script>
 </body>
 </html>

@@ -94,6 +94,65 @@ class MessageRead(ORMModel):
     updated_at: datetime
 
 
+class MessageBatchCreate(BaseModel):
+    messages: list[MessageCreate] = Field(min_length=1)
+
+
+class RunRead(ORMModel):
+    id: int
+    conversation_id: int
+    device_id: int | None
+    strategy: str
+    status: str
+    prompt_excerpt: str | None
+    result_summary: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class RunCreate(BaseModel):
+    device_id: int | None = None
+    strategy: str
+    status: str = "running"
+    prompt_excerpt: str | None = None
+    result_summary: str | None = None
+
+
+class RunUpdate(BaseModel):
+    strategy: str | None = None
+    status: str | None = None
+    result_summary: str | None = None
+
+
+class ConversationExecuteRequest(BaseModel):
+    content: str = Field(min_length=1)
+    workspace_path: str | None = None
+
+
+class ConversationExecuteResponse(BaseModel):
+    run: RunRead
+    messages: list[MessageRead]
+    workspace_path: str
+    artifact_dir: str | None = None
+    strategy: str
+
+
+class LocalConfigRead(BaseModel):
+    server_url: str
+
+
+class LocalConfigWrite(BaseModel):
+    server_url: str = Field(min_length=1)
+
+
+class LocalStatusResponse(BaseModel):
+    server_url: str
+    server_reachable: bool
+    local_device_name: str
+    local_hostname: str
+    local_platform: str
+
+
 class RunnerProbeRequest(BaseModel):
     workdir: str | None = None
 
@@ -124,4 +183,3 @@ class WorkspaceScanResponse(BaseModel):
     is_git_repo: bool
     top_entries: list[str]
     context_docs: list[str]
-

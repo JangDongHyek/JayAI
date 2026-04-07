@@ -1,69 +1,169 @@
 # JayAI
 
-로컬 `Codex CLI`, `Claude Code CLI`를 프로젝트 단위로 묶어서 쓰기 위한 개인용 오케스트레이터.
+JayAI is split into two parts:
 
-현재 포함:
-- `FastAPI` 기반 중앙 앱
-- 프로젝트 / 기기 / 워크스페이스 바인딩 / 세션 / 메시지 DB 스키마
-- 로컬 러너 상태 점검
-- 최소 웹 UI
-- 헤드리스 CLI 진입점
+- central server
+  stores projects, devices, workspace bindings, conversations, messages, and runs
+- local app
+  opens the UI, reads local files, runs `Codex CLI` and `Claude Code CLI`, then syncs results back to the server
 
-## 구조
+This matches the intended flow:
+
+1. install and log in to CLIs on each local machine
+2. keep project/session data on the central server
+3. bind a local folder on each machine and continue work from shared sessions
+
+## Current architecture
+
+### Central server
+
+- no local file access
+- no Codex or Claude execution
+- data/API only
+
+Main files:
 
 - `src/jayai/main.py`
-  FastAPI 앱 진입점
-- `src/jayai/models.py`
-  DB 모델
-- `src/jayai/schemas.py`
-  API 스키마
-- `src/jayai/services/runner.py`
-  로컬 환경 점검
-- `src/jayai/routers/`
-  API 라우터
-- `src/jayai/templates/index.html`
-  최소 웹 UI
+- `src/jayai/routers/projects.py`
+- `src/jayai/routers/devices.py`
+- `src/jayai/templates/server.html`
 
-## 빠른 시작
+### Local app
+
+- local browser UI
+- local workspace scan
+- local git actions
+- local Codex/Claude execution
+- syncs runs and messages to the central server
+
+Main files:
+
+- `src/jayai/local_main.py`
+- `src/jayai/routers/local.py`
+- `src/jayai/services/orchestrator.py`
+- `src/jayai/services/server_api.py`
+- `src/jayai/services/local_config.py`
+- `src/jayai/templates/index.html`
+- `start-jayai-local.bat`
+
+## Central server run
 
 ```powershell
 cd C:\Users\fove1\OneDrive\문서\codex\life\jayai
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .
-.\.venv\Scripts\python.exe -m uvicorn jayai.main:app --reload
+.\.venv\Scripts\python.exe -m uvicorn jayai.main:app --host 0.0.0.0 --port 8000
 ```
 
-브라우저:
-- `http://127.0.0.1:8000`
+Health:
 
-## 기본 DB
+- `http://<server-host>:8000/api/health`
 
-기본은 로컬 SQLite.
+If you want a path behind nginx:
 
-- `%PROJECT_ROOT%\data\jayai.db`
+```powershell
+$env:JAYAI_BASE_PATH="/jayai-api"
+.\.venv\Scripts\python.exe -m uvicorn jayai.main:app --host 0.0.0.0 --port 8000
+```
 
-서버에서 Postgres 쓰려면:
+## Local app run
+
+CLI:
+
+```powershell
+cd C:\Users\fove1\OneDrive\문서\codex\life\jayai
+.\.venv\Scripts\python.exe -m jayai.cli local-ui --open-browser
+```
+
+Double-click launcher:
+
+- `start-jayai-local.bat`
+
+Optional first run with server URL:
+
+```powershell
+.\.venv\Scripts\python.exe -m jayai.cli local-ui --server-url http://43.203.252.40:8000 --open-browser
+```
+
+After that, the local app stores the server URL in:
+
+- `data/local-config.json`
+
+## Local workflow
+
+1. open local UI
+2. set central server URL once
+3. check local CLI status
+4. pick or create a project
+5. bind the local workspace path
+6. open or create a conversation
+7. run prompts locally
+
+Examples:
+
+- `Read README and summarize the core structure in 5 lines`
+- `Show git status`
+- `Clone the repo and pull latest changes`
+
+## Project config files
+
+JayAI checks these files in the workspace root:
+
+- `.jayai.json`
+- `jayai.json`
+- `.orchestrator.json`
+- `orchestrator.json`
+
+Default behavior:
+
+- Codex reads heavy context first
+- Claude reviews Codex output
+
+## Data paths
+
+Central server DB default:
+
+- `data/jayai.db`
+
+Local run artifacts:
+
+- `data/runs/<timestamp>/`
+
+Artifacts include:
+
+- `codex.txt`
+- `claude.txt`
+- `summary.txt`
+- `meta.json`
+
+## Postgres switch
+
+Default DB is SQLite.
+
+For Postgres:
 
 ```powershell
 $env:JAYAI_DATABASE_URL="postgresql+psycopg://user:pass@host:5432/jayai"
-python -m uvicorn jayai.main:app --host 0.0.0.0 --port 8000
+.\.venv\Scripts\python.exe -m uvicorn jayai.main:app --host 0.0.0.0 --port 8000
 ```
 
-참고:
-- `psycopg`는 아직 의존성에 안 넣음
-- Postgres로 갈 때만 별도 설치
+Note:
 
-## CLI
+- `psycopg` is not installed yet
+- add it during server deployment if needed
 
-서버나 헤드리스 환경에서:
+## CLI commands
 
 ```powershell
 jayai serve --host 0.0.0.0 --port 8000
+jayai local-ui --open-browser
 jayai probe
 jayai scan-workspace C:\path\to\repo
 ```
 
-## 현재 범위
+## Current limits
 
-- 실제 Codex/Claude 작업 실행 orchestration은 다음 단계
-- 지금은 저장 구조, 러너 프로브, 프로젝트/세션 관리 뼈대까지
+- local app is still browser-based, not a packaged desktop app
+- no streaming token view yet
+- no background local runner service yet
+- no natural language `commit / push / PR` yet

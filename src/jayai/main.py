@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 
 from .config import get_settings
 from .db import init_db
-from .routers import devices_router, projects_router, runner_router
+from .routers import devices_router, projects_router
 
 
 settings = get_settings()
@@ -14,7 +14,7 @@ templates = Jinja2Templates(directory=str(settings.templates_dir))
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title=settings.app_name, version="0.1.0")
+    app = FastAPI(title=settings.app_name, version="0.1.0", root_path=settings.base_path)
 
     @app.on_event("startup")
     def on_startup() -> None:
@@ -28,15 +28,13 @@ def create_app() -> FastAPI:
     def index(request: Request) -> HTMLResponse:
         return templates.TemplateResponse(
             request=request,
-            name="index.html",
-            context={"app_name": settings.app_name},
+            name="server.html",
+            context={"app_name": settings.app_name, "base_path": settings.base_path},
         )
 
     app.include_router(projects_router)
     app.include_router(devices_router)
-    app.include_router(runner_router)
     return app
 
 
 app = create_app()
-

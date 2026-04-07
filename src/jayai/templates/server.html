@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ app_name }} Server</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(180deg, #ece6dc 0%, #f8f4ee 100%);
+      color: #1f1a15;
+      font-family: "Segoe UI", sans-serif;
+    }
+    .card {
+      width: min(720px, calc(100vw - 32px));
+      padding: 28px;
+      border-radius: 24px;
+      border: 1px solid rgba(91, 73, 47, 0.16);
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 24px 60px rgba(31, 26, 21, 0.08);
+    }
+    h1 { margin: 0 0 12px; font-size: 2rem; }
+    p { margin: 0 0 12px; line-height: 1.6; color: #5c5348; }
+    code {
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(13, 118, 100, 0.1);
+      color: #0a5a4c;
+    }
+  </style>
+</head>
+<body>
+  <section class="card">
+    <h1>{{ app_name }} Server</h1>
+    <p>This instance is the central API and database service.</p>
+    <p>Run the local app on each machine and connect it to this server.</p>
+    <p>Health check: <code>{{ base_path }}/api/health</code></p>
+  </section>
+</body>
+</html>

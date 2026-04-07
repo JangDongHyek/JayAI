@@ -5,14 +5,19 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Conversation, Message, Project, WorkspaceBinding
+from ..models import Conversation, Message, Project, Run, WorkspaceBinding
+from ..models import utc_now
 from ..schemas import (
     ConversationCreate,
     ConversationRead,
+    MessageBatchCreate,
     MessageCreate,
     MessageRead,
     ProjectCreate,
     ProjectRead,
+    RunCreate,
+    RunRead,
+    RunUpdate,
     WorkspaceBindingCreate,
     WorkspaceBindingRead,
 )
@@ -52,7 +57,7 @@ def list_bindings(project_id: int, db: Session = Depends(get_db)) -> list[Worksp
         db.scalars(
             select(WorkspaceBinding)
             .where(WorkspaceBinding.project_id == project_id)
-            .order_by(WorkspaceBinding.created_at.desc())
+            .order_by(WorkspaceBinding.updated_at.desc())
         )
     )
 
@@ -112,6 +117,14 @@ def create_conversation(
     return conversation
 
 
+@router.get("/conversations/{conversation_id}", response_model=ConversationRead)
+def get_conversation(conversation_id: int, db: Session = Depends(get_db)) -> Conversation:
+    conversation = db.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    return conversation
+
+
 @router.get("/conversations/{conversation_id}/messages", response_model=list[MessageRead])
 def list_messages(conversation_id: int, db: Session = Depends(get_db)) -> list[Message]:
     return list(
@@ -133,11 +146,87 @@ def create_message(
     payload: MessageCreate,
     db: Session = Depends(get_db),
 ) -> Message:
-    if not db.get(Conversation, conversation_id):
+    conversation = db.get(Conversation, conversation_id)
+    if not conversation:
         raise HTTPException(status_code=404, detail="conversation not found")
     message = Message(conversation_id=conversation_id, **payload.model_dump())
+    conversation.updated_at = utc_now()
     db.add(message)
     db.commit()
     db.refresh(message)
     return message
 
+
+@router.post(
+    "/conversations/{conversation_id}/messages/bulk",
+    response_model=list[MessageRead],
+    status_code=status.HTTP_201_CREATED,
+)
+def create_messages_bulk(
+    conversation_id: int,
+    payload: MessageBatchCreate,
+    db: Session = Depends(get_db),
+) -> list[Message]:
+    conversation = db.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    messages = [Message(conversation_id=conversation_id, **item.model_dump()) for item in payload.messages]
+    for message in messages:
+        db.add(message)
+    conversation.updated_at = utc_now()
+    db.commit()
+    for message in messages:
+        db.refresh(message)
+    return messages
+
+
+@router.get("/conversations/{conversation_id}/runs", response_model=list[RunRead])
+def list_runs(conversation_id: int, db: Session = Depends(get_db)) -> list[Run]:
+    return list(
+        db.scalars(
+            select(Run)
+            .where(Run.conversation_id == conversation_id)
+            .order_by(Run.created_at.desc())
+        )
+    )
+
+
+@router.post(
+    "/conversations/{conversation_id}/runs",
+    response_model=RunRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_run(
+    conversation_id: int,
+    payload: RunCreate,
+    db: Session = Depends(get_db),
+) -> Run:
+    conversation = db.get(Conversation, conversation_id)
+    if not conversation:
+        raise HTTPException(status_code=404, detail="conversation not found")
+    run = Run(conversation_id=conversation_id, **payload.model_dump())
+    conversation.updated_at = utc_now()
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+@router.patch("/runs/{run_id}", response_model=RunRead)
+def update_run(
+    run_id: int,
+    payload: RunUpdate,
+    db: Session = Depends(get_db),
+) -> Run:
+    run = db.get(Run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="run not found")
+    updates = payload.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        setattr(run, key, value)
+    conversation = db.get(Conversation, run.conversation_id)
+    if conversation:
+        conversation.updated_at = utc_now()
+    db.commit()
+    db.refresh(run)
+    return run
