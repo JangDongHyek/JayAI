@@ -9,7 +9,14 @@ from typing import Any, Sequence
 
 
 DEFAULT_PROJECT_CONFIG_NAMES = [".jayai.json", "jayai.json", ".orchestrator.json", "orchestrator.json"]
-DEFAULT_CONTEXT_PATTERNS = ["AGENTS.md", "README.md", "README*.md", "CLAUDE.md", "docs/**/*.md"]
+DEFAULT_CONTEXT_PATTERNS = [
+    "AGENTS.md",
+    "README.md",
+    "README*.md",
+    "CLAUDE.md",
+    "SESSION_STATUS.md",
+    "docs/**/*.md",
+]
 DEFAULT_IGNORE_DIRS = [
     ".git",
     ".venv",

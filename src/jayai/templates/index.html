@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -27,7 +27,7 @@
       margin: 0;
       min-height: 100vh;
       color: var(--ink);
-      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      font-family: "Pretendard", "Segoe UI", sans-serif;
       background:
         radial-gradient(circle at 15% 10%, rgba(13, 118, 100, 0.16), transparent 26%),
         radial-gradient(circle at 88% 0%, rgba(17, 72, 160, 0.14), transparent 22%),
@@ -59,6 +59,7 @@
     }
 
     .hero-main { padding: 24px 26px; }
+
     .hero-main h1 {
       margin: 14px 0 0;
       font-size: clamp(2rem, 4vw, 3.2rem);
@@ -343,30 +344,30 @@
   <main class="app">
     <section class="hero">
       <section class="card hero-main">
-        <span class="eyebrow">Project Aware Multi-Agent</span>
+        <span class="eyebrow">프로젝트 기반 멀티 에이전트</span>
         <h1>{{ app_name }}</h1>
-        <p>Codex reads project files first. Claude reviews and challenges. Projects, workspace bindings, conversations, and run logs stay on one screen.</p>
+        <p>Codex가 프로젝트 파일을 먼저 읽고, Claude가 검토한다. 프로젝트, 워크스페이스 경로, 대화 세션, 실행 로그를 한 화면에서 다룬다.</p>
       </section>
       <section class="card hero-side">
         <div class="mini">
-          <label>Server API</label>
+          <label>서버 API</label>
           <div class="row">
-            <input id="server-url" placeholder="http://43.203.252.40:8000 or https://host/path">
+            <input id="server-url" placeholder="http://43.203.252.40/jayai-api">
           </div>
-          <div id="server-meta" class="meta">No server configured</div>
+          <div id="server-meta" class="meta">서버 미설정</div>
         </div>
         <div class="mini">
-          <label>Local Device</label>
-          <div id="device-meta" class="meta">Checking...</div>
+          <label>로컬 장치</label>
+          <div id="device-meta" class="meta">확인 중...</div>
         </div>
         <div class="mini">
-          <label>Runner Status</label>
-          <div id="runner-meta" class="meta">Not checked yet</div>
+          <label>러너 상태</label>
+          <div id="runner-meta" class="meta">아직 점검 안 함</div>
         </div>
         <div class="actions">
-          <button id="save-server" class="secondary">Save Server</button>
-          <button id="probe-runner">Check CLIs</button>
-          <button id="refresh-all" class="secondary">Refresh</button>
+          <button id="save-server" class="secondary">서버 저장</button>
+          <button id="probe-runner">CLI 점검</button>
+          <button id="refresh-all" class="secondary">새로고침</button>
         </div>
       </section>
     </section>
@@ -374,24 +375,24 @@
     <section class="layout">
       <section class="card column">
         <div class="section-head">
-          <h2>Projects</h2>
-          <span class="pill">repo + docs + sessions</span>
+          <h2>프로젝트</h2>
+          <span class="pill">repo + 문서 + 세션</span>
         </div>
         <section class="project-form">
           <div class="row">
-            <label for="project-slug">Slug</label>
+            <label for="project-slug">슬러그</label>
             <input id="project-slug" placeholder="ai-macro">
           </div>
           <div class="row">
-            <label for="project-title">Title</label>
-            <input id="project-title" placeholder="AI Macro">
+            <label for="project-title">표시 이름</label>
+            <input id="project-title" placeholder="AI Macro 또는 JayAI">
           </div>
           <div class="row">
-            <label for="project-repo">Repo URL</label>
-            <input id="project-repo" placeholder="git@github.com:... or https://...">
+            <label for="project-repo">저장소 주소</label>
+            <input id="project-repo" placeholder="git@github.com:... 또는 https://...">
           </div>
           <div class="actions">
-            <button id="create-project">Add Project</button>
+            <button id="create-project">프로젝트 추가</button>
           </div>
         </section>
         <div class="list" id="projects"></div>
@@ -399,60 +400,60 @@
 
       <section class="card column">
         <div class="section-head">
-          <h2>Workspace / Sessions</h2>
-          <span class="pill">binding + resume</span>
+          <h2>워크스페이스 / 세션</h2>
+          <span class="pill">경로 연결 + 이어서 작업</span>
         </div>
         <section class="workspace-tools">
           <div class="row">
-            <label for="workspace-path">Workspace Path</label>
+            <label for="workspace-path">로컬 폴더 경로</label>
             <input id="workspace-path" placeholder="C:\path\to\repo">
           </div>
           <div class="actions">
-            <button id="save-binding">Save Path</button>
-            <button id="scan-workspace" class="secondary">Scan</button>
+            <button id="save-binding">경로 저장</button>
+            <button id="scan-workspace" class="secondary">경로 스캔</button>
           </div>
-          <div id="workspace-meta" class="meta">Select a project first</div>
+          <div id="workspace-meta" class="meta">프로젝트를 먼저 선택해</div>
         </section>
         <section class="conversation-tools">
           <div class="section-head">
-            <h2>Conversations</h2>
-            <button id="new-conversation" class="secondary">New</button>
+            <h2>대화 목록</h2>
+            <button id="new-conversation" class="secondary">새 대화</button>
           </div>
           <div class="list" id="conversations"></div>
         </section>
         <section class="run-shell">
           <div class="section-head">
-            <h2>Last Run</h2>
-            <span class="pill" id="run-strategy">idle</span>
+            <h2>최근 실행</h2>
+            <span class="pill" id="run-strategy">대기</span>
           </div>
-          <div id="run-meta" class="meta">No run yet</div>
-          <pre id="run-output">Recent run output appears here.</pre>
+          <div id="run-meta" class="meta">아직 실행 안 함</div>
+          <pre id="run-output">최근 실행 결과가 여기에 표시된다.</pre>
         </section>
       </section>
 
       <section class="card chat-card">
         <div class="chat-header">
           <div>
-            <h2 id="chat-title">No conversation selected</h2>
-            <div id="chat-subtitle" class="meta">Select a project and create a conversation.</div>
+            <h2 id="chat-title">대화 선택 필요</h2>
+            <div id="chat-subtitle" class="meta">프로젝트를 고르고 대화를 만들면 된다.</div>
           </div>
-          <span class="pill" id="project-pill">none</span>
+          <span class="pill" id="project-pill">없음</span>
         </div>
         <div class="composer-note">
-          <span>git clone / pull / status auto-detect</span>
-          <span>Codex first for heavy context</span>
-          <span>Claude as reviewer</span>
+          <span>`git clone / pull / status` 자동 감지</span>
+          <span>무거운 파일 읽기는 Codex 우선</span>
+          <span>Claude는 검토와 반박 담당</span>
         </div>
         <div class="messages" id="messages">
-          <div class="empty">Select a project on the left and create a conversation.</div>
+          <div class="empty">왼쪽에서 프로젝트를 고르고 대화를 만들면 된다.</div>
         </div>
         <div class="row">
-          <label for="prompt-input">Prompt</label>
-          <textarea id="prompt-input" placeholder="Read README and summarize the core structure in 5 lines&#10;Clone the repo and show git status"></textarea>
+          <label for="prompt-input">지시</label>
+          <textarea id="prompt-input" placeholder="README 읽고 핵심 구조 5줄로 요약&#10;repo 가져오고 git status 보여줘"></textarea>
         </div>
         <div class="actions">
-          <button id="send-prompt">Run</button>
-          <button id="clear-prompt" class="secondary">Clear</button>
+          <button id="send-prompt">실행</button>
+          <button id="clear-prompt" class="secondary">비우기</button>
         </div>
       </section>
     </section>
@@ -518,15 +519,15 @@
       const status = await request(`${apiBase}/local/status`);
       elements.serverUrl.value = config.server_url || "";
       elements.serverMeta.textContent = status.server_url
-        ? `${status.server_url} | ${status.server_reachable ? "reachable" : "unreachable"}`
-        : "No server configured";
+        ? `${status.server_url} | ${status.server_reachable ? "연결됨" : "연결 안 됨"}`
+        : "서버 미설정";
       elements.deviceMeta.textContent = `${status.local_hostname} | ${status.local_platform}`;
     }
 
     async function saveServerUrl() {
       const serverUrl = elements.serverUrl.value.trim();
       if (!serverUrl) {
-        throw new Error("server url required");
+        throw new Error("서버 주소가 비어 있음");
       }
       const saved = await request(`${apiBase}/local/config`, {
         method: "POST",
@@ -544,45 +545,45 @@
       return state.conversations.find((conversation) => conversation.id === state.activeConversationId) || null;
     }
 
-    function showRunOutput(value, meta = "", strategy = "idle") {
+    function showRunOutput(value, meta = "", strategy = "대기") {
       elements.runOutput.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
-      elements.runMeta.textContent = meta || "No run info";
+      elements.runMeta.textContent = meta || "실행 정보 없음";
       elements.runStrategy.textContent = strategy;
     }
 
     function renderProjects() {
       if (!state.projects.length) {
-        elements.projects.innerHTML = '<div class="empty">No projects yet.</div>';
-        elements.projectPill.textContent = "none";
+        elements.projects.innerHTML = '<div class="empty">프로젝트 없음.</div>';
+        elements.projectPill.textContent = "없음";
         return;
       }
       elements.projects.innerHTML = state.projects.map((project) => `
         <article class="item ${project.id === state.activeProjectId ? "active" : ""}" data-project-id="${project.id}">
           <strong>${escapeHtml(project.title)}</strong>
           <div class="meta">${escapeHtml(project.slug)}</div>
-          <div class="meta">${escapeHtml(project.repo_url || "no repo url")}</div>
+          <div class="meta">${escapeHtml(project.repo_url || "저장소 주소 없음")}</div>
         </article>
       `).join("");
       elements.projects.querySelectorAll("[data-project-id]").forEach((node) => {
         node.addEventListener("click", () => selectProject(Number(node.dataset.projectId)));
       });
       const project = activeProject();
-      elements.projectPill.textContent = project ? project.slug : "none";
+      elements.projectPill.textContent = project ? project.slug : "없음";
     }
 
     function renderConversations() {
       if (!state.activeProjectId) {
-        elements.conversations.innerHTML = '<div class="empty">Select a project first.</div>';
+        elements.conversations.innerHTML = '<div class="empty">프로젝트를 먼저 선택해.</div>';
         return;
       }
       if (!state.conversations.length) {
-        elements.conversations.innerHTML = '<div class="empty">No conversations yet.</div>';
+        elements.conversations.innerHTML = '<div class="empty">대화 없음.</div>';
         return;
       }
       elements.conversations.innerHTML = state.conversations.map((conversation) => `
         <article class="item ${conversation.id === state.activeConversationId ? "active" : ""}" data-conversation-id="${conversation.id}">
           <strong>${escapeHtml(conversation.title)}</strong>
-          <div class="meta">status: ${escapeHtml(conversation.status)}</div>
+          <div class="meta">상태: ${escapeHtml(conversation.status)}</div>
           <div class="meta">${new Date(conversation.updated_at).toLocaleString()}</div>
         </article>
       `).join("");
@@ -594,13 +595,13 @@
     function renderMessages() {
       const project = activeProject();
       const conversation = activeConversation();
-      elements.chatTitle.textContent = conversation ? conversation.title : "No conversation selected";
+      elements.chatTitle.textContent = conversation ? conversation.title : "대화 선택 필요";
       elements.chatSubtitle.textContent = project
-        ? `${project.title} | ${elements.workspacePath.value.trim() || "no workspace path"}`
-        : "Select a project and create a conversation.";
+        ? `${project.title} | ${elements.workspacePath.value.trim() || "경로 미지정"}`
+        : "프로젝트를 고르고 대화를 만들면 된다.";
 
       if (!state.messages.length) {
-        elements.messages.innerHTML = '<div class="empty">No messages yet.</div>';
+        elements.messages.innerHTML = '<div class="empty">메시지 없음.</div>';
         return;
       }
 
@@ -649,22 +650,22 @@
         .map((tool) => `${tool.name}:${tool.installed ? "ok" : "missing"}${tool.auth_state ? `/${tool.auth_state}` : ""}`)
         .join(" | ");
       elements.runnerMeta.textContent = `${result.hostname} | ${toolSummary}`;
-      showRunOutput(result, "CLI probe result", "probe");
+      showRunOutput(result, "CLI 점검 결과", "점검");
     }
 
     async function scanWorkspace() {
       const path = elements.workspacePath.value.trim();
       if (!path) {
-        throw new Error("workspace path required");
+        throw new Error("워크스페이스 경로 필요");
       }
       const result = await request(`${apiBase}/runner/scan-workspace`, {
         method: "POST",
         body: JSON.stringify({ path }),
       });
       elements.workspaceMeta.textContent = result.exists
-        ? `exists | git:${result.is_git_repo ? "yes" : "no"} | docs:${result.context_docs.length}`
-        : "path not found";
-      showRunOutput(result, "Workspace scan result", "scan");
+        ? `존재함 | git:${result.is_git_repo ? "yes" : "no"} | 문서:${result.context_docs.length}`
+        : "경로 없음";
+      showRunOutput(result, "경로 스캔 결과", "스캔");
     }
 
     async function loadProjects(preferredProjectId = null) {
@@ -697,8 +698,8 @@
       const chosen = ownBinding || bindings[0] || null;
       elements.workspacePath.value = chosen ? chosen.local_path : "";
       elements.workspaceMeta.textContent = chosen
-        ? `saved path: ${chosen.local_path}`
-        : "no saved path";
+        ? `저장된 경로: ${chosen.local_path}`
+        : "저장된 경로 없음";
     }
 
     async function loadConversations(projectId, preferredConversationId = null) {
@@ -740,7 +741,7 @@
         title: document.getElementById("project-title").value.trim(),
         repo_url: document.getElementById("project-repo").value.trim() || null,
         default_branch: "main",
-        docs_globs: ["AGENTS.md", "README.md", "README*.md", "CLAUDE.md", "docs/**/*.md"],
+        docs_globs: ["AGENTS.md", "README.md", "README*.md", "CLAUDE.md", "SESSION_STATUS.md", "docs/**/*.md"],
       };
       const project = await request(`${apiBase}/projects`, {
         method: "POST",
@@ -755,14 +756,14 @@
     async function saveBinding() {
       const project = activeProject();
       if (!project) {
-        throw new Error("project required");
+        throw new Error("프로젝트 선택 필요");
       }
       if (!state.device) {
-        throw new Error("device registration required");
+        throw new Error("장치 등록 필요");
       }
       const localPath = elements.workspacePath.value.trim();
       if (!localPath) {
-        throw new Error("workspace path required");
+        throw new Error("워크스페이스 경로 필요");
       }
       await request(`${apiBase}/projects/${project.id}/bindings`, {
         method: "POST",
@@ -773,16 +774,16 @@
           preferred_branch: project.default_branch,
         }),
       });
-      elements.workspaceMeta.textContent = `path saved: ${localPath}`;
+      elements.workspaceMeta.textContent = `경로 저장됨: ${localPath}`;
     }
 
     async function createConversation(title = null) {
       const project = activeProject();
       if (!project) {
-        throw new Error("project required");
+        throw new Error("프로젝트 선택 필요");
       }
       const payload = {
-        title: title || `Conversation ${new Date().toLocaleString()}`,
+        title: title || `대화 ${new Date().toLocaleString()}`,
       };
       const conversation = await request(`${apiBase}/projects/${project.id}/conversations`, {
         method: "POST",
@@ -797,24 +798,24 @@
       if (conversation) {
         return conversation;
       }
-      const title = prompt.replace(/\s+/g, " ").trim().slice(0, 40) || "Conversation";
+      const title = prompt.replace(/\s+/g, " ").trim().slice(0, 40) || "대화";
       return createConversation(title);
     }
 
     async function sendPrompt() {
       const prompt = elements.promptInput.value.trim();
       if (!prompt) {
-        throw new Error("prompt is empty");
+        throw new Error("지시가 비어 있음");
       }
       const project = activeProject();
       if (!project) {
-        throw new Error("project required");
+        throw new Error("프로젝트 선택 필요");
       }
       const conversation = await ensureConversationForPrompt(prompt);
       const workspacePath = elements.workspacePath.value.trim() || null;
 
       elements.sendPrompt.disabled = true;
-      showRunOutput("Running...", `${project.title} | ${workspacePath || "no workspace path"}`, "running");
+      showRunOutput("실행 중...", `${project.title} | ${workspacePath || "경로 미지정"}`, "실행 중");
       try {
         const result = await request(`${apiBase}/projects/conversations/${conversation.id}/execute`, {
           method: "POST",
@@ -829,7 +830,7 @@
         await selectConversation(conversation.id);
         showRunOutput(
           result.messages.map((message) => `[${message.agent || message.role}]\n${message.content}`).join("\n\n"),
-          `strategy:${result.strategy} | workspace:${result.workspace_path} | artifacts:${result.artifact_dir || "none"}`,
+          `전략:${result.strategy} | 작업경로:${result.workspace_path} | 산출물:${result.artifact_dir || "없음"}`,
           result.strategy,
         );
       } finally {
@@ -857,30 +858,30 @@
     }
 
     document.getElementById("create-project").addEventListener("click", () => {
-      createProject().catch((error) => showRunOutput(String(error), "Project create failed", "error"));
+      createProject().catch((error) => showRunOutput(String(error), "프로젝트 생성 실패", "오류"));
     });
     document.getElementById("save-binding").addEventListener("click", () => {
-      saveBinding().then(() => scanWorkspace()).catch((error) => showRunOutput(String(error), "Save path failed", "error"));
+      saveBinding().then(() => scanWorkspace()).catch((error) => showRunOutput(String(error), "경로 저장 실패", "오류"));
     });
     document.getElementById("scan-workspace").addEventListener("click", () => {
-      scanWorkspace().catch((error) => showRunOutput(String(error), "Scan failed", "error"));
+      scanWorkspace().catch((error) => showRunOutput(String(error), "경로 스캔 실패", "오류"));
     });
     document.getElementById("new-conversation").addEventListener("click", () => {
-      createConversation().catch((error) => showRunOutput(String(error), "Conversation create failed", "error"));
+      createConversation().catch((error) => showRunOutput(String(error), "대화 생성 실패", "오류"));
     });
     document.getElementById("probe-runner").addEventListener("click", () => {
-      probeRunner().catch((error) => showRunOutput(String(error), "Probe failed", "error"));
+      probeRunner().catch((error) => showRunOutput(String(error), "CLI 점검 실패", "오류"));
     });
     document.getElementById("save-server").addEventListener("click", () => {
       saveServerUrl()
         .then(() => refreshAll())
-        .catch((error) => showRunOutput(String(error), "Save server failed", "error"));
+        .catch((error) => showRunOutput(String(error), "서버 저장 실패", "오류"));
     });
     document.getElementById("refresh-all").addEventListener("click", () => {
-      refreshAll().catch((error) => showRunOutput(String(error), "Refresh failed", "error"));
+      refreshAll().catch((error) => showRunOutput(String(error), "새로고침 실패", "오류"));
     });
     document.getElementById("send-prompt").addEventListener("click", () => {
-      sendPrompt().catch((error) => showRunOutput(String(error), "Run failed", "error"));
+      sendPrompt().catch((error) => showRunOutput(String(error), "실행 실패", "오류"));
     });
     document.getElementById("clear-prompt").addEventListener("click", () => {
       elements.promptInput.value = "";
@@ -888,11 +889,11 @@
     elements.promptInput.addEventListener("keydown", (event) => {
       if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
         event.preventDefault();
-        sendPrompt().catch((error) => showRunOutput(String(error), "Run failed", "error"));
+        sendPrompt().catch((error) => showRunOutput(String(error), "실행 실패", "오류"));
       }
     });
 
-    refreshAll().then(() => probeRunner()).catch((error) => showRunOutput(String(error), "Init failed", "error"));
+    refreshAll().then(() => probeRunner()).catch((error) => showRunOutput(String(error), "초기화 실패", "오류"));
   </script>
 </body>
 </html>

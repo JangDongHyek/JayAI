@@ -9,12 +9,22 @@ class ORMModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+DEFAULT_DOCS_GLOBS = [
+    "AGENTS.md",
+    "README.md",
+    "README*.md",
+    "CLAUDE.md",
+    "SESSION_STATUS.md",
+    "docs/**/*.md",
+]
+
+
 class ProjectCreate(BaseModel):
     slug: str = Field(min_length=2, max_length=120)
     title: str = Field(min_length=1, max_length=200)
     repo_url: str | None = None
     default_branch: str = "main"
-    docs_globs: list[str] = Field(default_factory=list)
+    docs_globs: list[str] = Field(default_factory=lambda: list(DEFAULT_DOCS_GLOBS))
 
 
 class ProjectRead(ORMModel):
