@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import platform
 import socket
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -22,16 +23,18 @@ from ..schemas import (
     ProjectDetailRead,
     ProjectHandoffRead,
     ProjectHandoffUpsert,
+    ProjectLoadRequest,
     ProjectRead,
+    ProjectSaveRequest,
+    ProjectSyncRead,
     ProjectUpdate,
     RunnerProbeRequest,
     RunnerProbeResponse,
-    WorkspaceBindingCreate,
     WorkspaceBindingRead,
     WorkspaceScanRequest,
     WorkspaceScanResponse,
 )
-from ..services.git_ops import clone_project, pull_project, status_project
+from ..services.git_ops import clone_project, is_git_repo, pull_project, save_and_push_project, status_project
 from ..services.job_manager import job_manager
 from ..services.local_config import get_server_url, read_local_config, write_local_config
 from ..services.runner import probe_local_environment, scan_workspace
@@ -79,6 +82,62 @@ def _active_binding_from_detail(detail: dict[str, object], device_id: int) -> Wo
         if binding["device_id"] == device_id:
             return WorkspaceBindingRead.model_validate(binding)
     return None
+
+
+def _bind_current_device(
+    client: ServerClient,
+    *,
+    project_id: int,
+    device_id: int,
+    local_path: str,
+    default_branch: str,
+) -> dict[str, object]:
+    return client.bind_workspace(
+        project_id,
+        {
+            "project_id": project_id,
+            "device_id": device_id,
+            "local_path": local_path,
+            "preferred_branch": default_branch,
+        },
+    )
+
+
+def _render_session_status(
+    *,
+    project: dict[str, object],
+    workspace_path: str,
+    device_name: str,
+    project_brief: str,
+    current_status: str,
+    next_steps: str,
+    notes: str,
+) -> str:
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    lines = [
+        f"# {project['title']} 상태 정리",
+        "",
+        f"- 저장 시각: {timestamp}",
+        f"- 기기: {device_name}",
+        f"- 슬러그: {project['slug']}",
+        f"- 저장소: {project.get('repo_url') or '(없음)'}",
+        f"- 브랜치: {project.get('default_branch') or 'main'}",
+        f"- 로컬 경로: {workspace_path}",
+        "",
+        "## 프로젝트 설명",
+        project_brief.strip() or "(미작성)",
+        "",
+        "## 현재 상태",
+        current_status.strip() or "(미작성)",
+        "",
+        "## 다음 작업",
+        next_steps.strip() or "(미작성)",
+        "",
+        "## 메모",
+        notes.strip() or "(미작성)",
+        "",
+    ]
+    return "\n".join(lines)
 
 
 @router.get("/api/health")
@@ -207,6 +266,51 @@ def save_binding(project_id: int, payload: GitActionRequest) -> WorkspaceBinding
     return WorkspaceBindingRead.model_validate(binding)
 
 
+@router.post("/api/local/projects/{project_id}/load", response_model=ProjectSyncRead)
+def load_project(project_id: int, payload: ProjectLoadRequest) -> ProjectSyncRead:
+    try:
+        client = _server_client()
+        device = _register_local_device(client)
+        detail = client.get_project_detail(project_id)
+        project = detail["project"]
+        workspace_path = _resolve_workspace_path(
+            detail,
+            device_id=device["id"],
+            workspace_path=payload.workspace_path,
+        )
+        path_obj = Path(workspace_path)
+
+        if path_obj.exists() and is_git_repo(path_obj):
+            result = pull_project(path_obj, project["default_branch"])
+        else:
+            if not project.get("repo_url"):
+                raise HTTPException(status_code=400, detail="repo 주소가 없음")
+            result = clone_project(project["repo_url"], path_obj, project["default_branch"])
+
+        _bind_current_device(
+            client,
+            project_id=project_id,
+            device_id=device["id"],
+            local_path=str(path_obj),
+            default_branch=project["default_branch"],
+        )
+    except HTTPException:
+        raise
+    except (RuntimeError, ServerApiError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    output = "\n\n".join(part for part in [result.summary, result.stdout, result.stderr] if part)
+    return ProjectSyncRead(
+        action="load",
+        success=result.success,
+        summary=result.summary,
+        output=output,
+        workspace_path=str(path_obj),
+        file_path=None,
+        command=result.command,
+    )
+
+
 @router.put("/api/local/projects/{project_id}/handoff", response_model=ProjectHandoffRead)
 def save_handoff(project_id: int, payload: ProjectHandoffUpsert) -> ProjectHandoffRead:
     try:
@@ -214,6 +318,80 @@ def save_handoff(project_id: int, payload: ProjectHandoffUpsert) -> ProjectHando
     except (RuntimeError, ServerApiError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return ProjectHandoffRead.model_validate(handoff)
+
+
+@router.post("/api/local/projects/{project_id}/save", response_model=ProjectSyncRead)
+def save_project(project_id: int, payload: ProjectSaveRequest) -> ProjectSyncRead:
+    try:
+        client = _server_client()
+        device = _register_local_device(client)
+        detail = client.get_project_detail(project_id)
+        project = detail["project"]
+        workspace_path = _resolve_workspace_path(
+            detail,
+            device_id=device["id"],
+            workspace_path=payload.workspace_path,
+        )
+        path_obj = Path(workspace_path)
+        if not path_obj.exists() or not path_obj.is_dir():
+            raise HTTPException(status_code=400, detail="저장할 로컬 경로가 없음")
+
+        handoff_payload = {
+            "project_brief": payload.project_brief.strip(),
+            "current_status": payload.current_status.strip(),
+            "next_steps": payload.next_steps.strip(),
+            "notes": payload.notes.strip(),
+            "updated_by_device": device["name"],
+        }
+        client.save_handoff(project_id, handoff_payload)
+        _bind_current_device(
+            client,
+            project_id=project_id,
+            device_id=device["id"],
+            local_path=str(path_obj),
+            default_branch=project["default_branch"],
+        )
+
+        status_file = path_obj / "SESSION_STATUS.md"
+        status_file.write_text(
+            _render_session_status(
+                project=project,
+                workspace_path=str(path_obj),
+                device_name=device["name"],
+                project_brief=handoff_payload["project_brief"],
+                current_status=handoff_payload["current_status"],
+                next_steps=handoff_payload["next_steps"],
+                notes=handoff_payload["notes"],
+            ),
+            encoding="utf-8",
+        )
+
+        git_result = save_and_push_project(
+            path_obj,
+            payload.commit_message or "chore: save progress",
+        )
+    except HTTPException:
+        raise
+    except (RuntimeError, ServerApiError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    output = "\n\n".join(
+        part for part in [
+            f"인계 파일: {status_file}",
+            git_result.summary,
+            git_result.stdout,
+            git_result.stderr,
+        ] if part
+    )
+    return ProjectSyncRead(
+        action="save",
+        success=git_result.success,
+        summary=git_result.summary,
+        output=output,
+        workspace_path=str(path_obj),
+        file_path=str(status_file),
+        command=git_result.command,
+    )
 
 
 @router.post("/api/local/projects/{project_id}/git/{action}", response_model=GitActionRead)

@@ -183,6 +183,29 @@ class GitActionRead(BaseModel):
     workspace_path: str
 
 
+class ProjectLoadRequest(BaseModel):
+    workspace_path: str | None = None
+
+
+class ProjectSaveRequest(BaseModel):
+    workspace_path: str | None = None
+    project_brief: str = ""
+    current_status: str = ""
+    next_steps: str = ""
+    notes: str = ""
+    commit_message: str | None = None
+
+
+class ProjectSyncRead(BaseModel):
+    action: str
+    success: bool
+    summary: str
+    output: str
+    workspace_path: str
+    file_path: str | None = None
+    command: list[str] = Field(default_factory=list)
+
+
 class ExecutionStartRequest(BaseModel):
     prompt: str = Field(min_length=1)
     mode: Literal["codex", "claude", "both"] = "both"

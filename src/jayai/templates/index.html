@@ -307,7 +307,7 @@
       <section class="card hero-main">
         <span class="pill">단일 사용자 멀티디바이스 작업용</span>
         <h1>{{ app_name }}</h1>
-        <p>대화 기록을 억지로 이어붙이지 않는다. 프로젝트 정보, 기기별 경로, 현재 인계만 서버에 저장하고 실제 작업은 항상 로컬에서 실행한다.</p>
+        <p>대화 로그를 억지로 이어붙이지 않는다. 프로젝트 정보, 기기별 경로, 현재 인계만 서버에 저장하고 실제 작업은 항상 로컬에서 실행한다.</p>
       </section>
       <section class="card hero-side">
         <div class="mini">
@@ -417,7 +417,7 @@
         <section class="stack">
           <div class="section-head">
             <h2>인계 정보</h2>
-            <span class="pill">자동 저장 안 함</span>
+            <span class="pill">저장하기에서 반영</span>
           </div>
           <div class="row">
             <label for="handoff-brief">프로젝트 설명</label>
@@ -432,13 +432,10 @@
             <textarea id="handoff-next" placeholder="다음에 무엇을 해야 하는지"></textarea>
           </div>
           <div class="row">
-            <label for="handoff-notes">주의사항</label>
-            <textarea id="handoff-notes" placeholder="실수하기 쉬운 점, 환경 이슈, 메모"></textarea>
+            <label for="handoff-notes">메모</label>
+            <textarea id="handoff-notes" placeholder="오늘 작업 흐름, 주의사항, 남은 문제"></textarea>
           </div>
-          <div class="actions">
-            <button id="save-handoff">인계 저장</button>
-          </div>
-          <div id="handoff-meta" class="meta">저장 안 됨</div>
+          <div id="handoff-meta" class="meta">아직 저장 안 함</div>
         </section>
       </section>
 
@@ -450,27 +447,21 @@
 
         <section class="stack">
           <div class="status-bar">
-            <div>
-              <strong id="run-status-title">실행 안 함</strong>
-              <div id="run-status-meta" class="meta">프로젝트 선택 후 경로와 인계를 확인해라.</div>
-            </div>
+            <div class="meta">불러오기는 clone/pull, 저장하기는 인계 반영 + <code>SESSION_STATUS.md</code> + commit/push</div>
             <div class="actions">
-              <button id="git-clone" class="secondary">Clone</button>
-              <button id="git-pull" class="secondary">Pull</button>
-              <button id="git-status" class="secondary">Status</button>
+              <button id="load-project" class="secondary">불러오기</button>
+              <button id="save-project" class="secondary">저장하기</button>
             </div>
           </div>
 
           <div class="row">
-            <label for="prompt-input">로컬 실행 지시</label>
-            <textarea id="prompt-input" placeholder="README 읽고 현재 구조 요약&#10;다음에 수정할 파일 후보 정리"></textarea>
+            <label for="prompt-input">실행 지시</label>
+            <textarea id="prompt-input" placeholder="README 읽고 현재 구조 요약&#10;다음 수정 순서 정리"></textarea>
           </div>
           <div class="actions">
-            <button id="run-codex">Codex만 실행</button>
-            <button id="run-both" class="warn">Codex 후 Claude</button>
-            <button id="run-claude" class="secondary">Claude만 실행</button>
+            <button id="run-execute" class="warn">실행</button>
           </div>
-          <div class="meta">실행 중에는 새 작업을 막는다. 결과 확인 후 필요한 내용만 인계에 수동 저장하면 된다.</div>
+          <div class="meta">실행은 항상 Codex 먼저, 그 다음 Claude 검토 순서로 돈다.</div>
         </section>
 
         <section class="stack">
@@ -488,7 +479,7 @@
             <h2>출력</h2>
             <span class="pill" id="artifact-pill">산출물 없음</span>
           </div>
-          <pre id="output">여기에 git 결과 또는 Codex/Claude 실행 결과가 표시된다.</pre>
+          <pre id="output">여기에 불러오기, 저장하기, 실행 결과가 표시된다.</pre>
         </section>
       </section>
     </section>
@@ -526,8 +517,6 @@
       handoffMeta: document.getElementById("handoff-meta"),
       promptInput: document.getElementById("prompt-input"),
       runModePill: document.getElementById("run-mode-pill"),
-      runStatusTitle: document.getElementById("run-status-title"),
-      runStatusMeta: document.getElementById("run-status-meta"),
       tools: document.getElementById("tools"),
       output: document.getElementById("output"),
       artifactPill: document.getElementById("artifact-pill"),
@@ -564,7 +553,7 @@
     function setOutput(text, mode = "대기", meta = "", artifact = "") {
       elements.output.textContent = text || "출력 없음";
       elements.runModePill.textContent = mode;
-      elements.runStatusMeta.textContent = meta || "추가 정보 없음";
+      elements.jobMeta.textContent = meta || "없음";
       elements.artifactPill.textContent = artifact || "산출물 없음";
     }
 
@@ -580,7 +569,7 @@
       elements.handoffStatus.value = "";
       elements.handoffNext.value = "";
       elements.handoffNotes.value = "";
-      elements.handoffMeta.textContent = "저장 안 됨";
+      elements.handoffMeta.textContent = "아직 저장 안 함";
     }
 
     function renderProjects() {
@@ -746,36 +735,37 @@
       );
     }
 
-    async function saveHandoff() {
+    async function loadProjectWorkspace() {
+      const project = activeProject();
+      if (!project) {
+        throw new Error("프로젝트 선택 필요");
+      }
+      const result = await request(`${apiBase}/local/projects/${project.id}/load`, {
+        method: "POST",
+        body: JSON.stringify({ workspace_path: elements.workspacePath.value.trim() || null }),
+      });
+      setOutput(result.output, "불러오기", result.summary, result.workspace_path);
+      await loadProjectDetail(project.id);
+    }
+
+    async function saveProjectWorkspace() {
       const project = activeProject();
       if (!project) {
         throw new Error("프로젝트 선택 필요");
       }
       const payload = {
+        workspace_path: elements.workspacePath.value.trim() || null,
         project_brief: elements.handoffBrief.value.trim(),
         current_status: elements.handoffStatus.value.trim(),
         next_steps: elements.handoffNext.value.trim(),
         notes: elements.handoffNotes.value.trim(),
-        updated_by_device: state.bootstrap?.device?.name || null,
       };
-      const handoff = await request(`${apiBase}/local/projects/${project.id}/handoff`, {
-        method: "PUT",
+      const result = await request(`${apiBase}/local/projects/${project.id}/save`, {
+        method: "POST",
         body: JSON.stringify(payload),
       });
-      elements.handoffMeta.textContent = `저장 완료: ${new Date(handoff.updated_at).toLocaleString()} / ${handoff.updated_by_device || "기록 없음"}`;
-    }
-
-    async function runGit(action) {
-      const project = activeProject();
-      if (!project) {
-        throw new Error("프로젝트 선택 필요");
-      }
-      const result = await request(`${apiBase}/local/projects/${project.id}/git/${action}`, {
-        method: "POST",
-        body: JSON.stringify({ workspace_path: elements.workspacePath.value.trim() || null }),
-      });
-      const text = [result.summary, result.stdout, result.stderr].filter(Boolean).join("\n\n");
-      setOutput(text, `git ${action}`, result.workspace_path, result.command.join(" "));
+      elements.handoffMeta.textContent = `저장 완료: ${result.file_path || "SESSION_STATUS.md"} 반영`;
+      setOutput(result.output, "저장하기", result.summary, result.file_path || "");
       await loadProjectDetail(project.id);
     }
 
@@ -796,12 +786,12 @@
     }
 
     function setRunBusy(isBusy) {
-      ["run-codex", "run-both", "run-claude", "git-clone", "git-pull", "git-status"].forEach((id) => {
+      ["load-project", "save-project", "run-execute"].forEach((id) => {
         document.getElementById(id).disabled = isBusy;
       });
     }
 
-    async function startExecution(mode) {
+    async function startExecution() {
       const project = activeProject();
       if (!project) {
         throw new Error("프로젝트 선택 필요");
@@ -814,15 +804,13 @@
         method: "POST",
         body: JSON.stringify({
           prompt,
-          mode,
+          mode: "both",
           workspace_path: elements.workspacePath.value.trim() || null,
         }),
       });
       state.activeJobId = job.id;
-      elements.runStatusTitle.textContent = job.phase;
-      elements.jobMeta.textContent = `${project.title} | ${job.phase}`;
       setRunBusy(true);
-      setOutput("실행 시작됨. 완료될 때까지 새 작업을 막는다.", mode, job.phase);
+      setOutput("실행 시작됨. Codex 먼저 돌고, 이어서 Claude 검토가 붙는다.", "실행", job.phase);
       startPolling();
     }
 
@@ -830,7 +818,9 @@
       const job = await request(`${apiBase}/local/jobs/active`);
       if (!job) {
         state.activeJobId = null;
-        elements.jobMeta.textContent = "없음";
+        if (elements.jobMeta.textContent.trim() === "") {
+          elements.jobMeta.textContent = "없음";
+        }
         setRunBusy(false);
         return;
       }
@@ -860,9 +850,8 @@
         }
         try {
           const job = await request(`${apiBase}/local/jobs/${state.activeJobId}`);
-          elements.runStatusTitle.textContent = job.phase;
           elements.jobMeta.textContent = `${job.phase} | ${job.status}`;
-          setOutput(job.output || job.error || "실행 중...", job.mode || "실행", job.phase, job.artifact_dir || "");
+          setOutput(job.output || job.error || "실행 중...", "실행", job.phase, job.artifact_dir || "");
           if (job.status === "completed" || job.status === "failed") {
             setRunBusy(false);
             stopPolling();
@@ -893,29 +882,17 @@
     document.getElementById("scan-workspace").addEventListener("click", () => {
       scanCurrentWorkspace().catch((error) => setOutput(String(error), "오류", "폴더 스캔 실패"));
     });
-    document.getElementById("save-handoff").addEventListener("click", () => {
-      saveHandoff().catch((error) => setOutput(String(error), "오류", "인계 저장 실패"));
+    document.getElementById("load-project").addEventListener("click", () => {
+      loadProjectWorkspace().catch((error) => setOutput(String(error), "오류", "불러오기 실패"));
     });
-    document.getElementById("git-clone").addEventListener("click", () => {
-      runGit("clone").catch((error) => setOutput(String(error), "오류", "git clone 실패"));
-    });
-    document.getElementById("git-pull").addEventListener("click", () => {
-      runGit("pull").catch((error) => setOutput(String(error), "오류", "git pull 실패"));
-    });
-    document.getElementById("git-status").addEventListener("click", () => {
-      runGit("status").catch((error) => setOutput(String(error), "오류", "git status 실패"));
+    document.getElementById("save-project").addEventListener("click", () => {
+      saveProjectWorkspace().catch((error) => setOutput(String(error), "오류", "저장하기 실패"));
     });
     document.getElementById("probe-runner").addEventListener("click", () => {
       probeRunner().catch((error) => setOutput(String(error), "오류", "환경 점검 실패"));
     });
-    document.getElementById("run-codex").addEventListener("click", () => {
-      startExecution("codex").catch((error) => setOutput(String(error), "오류", "Codex 실행 실패"));
-    });
-    document.getElementById("run-both").addEventListener("click", () => {
-      startExecution("both").catch((error) => setOutput(String(error), "오류", "복합 실행 실패"));
-    });
-    document.getElementById("run-claude").addEventListener("click", () => {
-      startExecution("claude").catch((error) => setOutput(String(error), "오류", "Claude 실행 실패"));
+    document.getElementById("run-execute").addEventListener("click", () => {
+      startExecution().catch((error) => setOutput(String(error), "오류", "실행 실패"));
     });
 
     loadBootstrap()
