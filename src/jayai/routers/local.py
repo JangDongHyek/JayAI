@@ -42,6 +42,21 @@ from ..services.server_api import ServerApiError, ServerClient
 
 
 router = APIRouter()
+CLAUDE_REVIEW_KEYWORDS = (
+    "\uac80\uc99d",
+    "\uac80\ud1a0",
+    "\ub9ac\ubdf0",
+    "\ubc18\ubc15",
+    "\ub9ac\uc2a4\ud06c",
+    "\uc704\ud5d8",
+    "\ube44\uad50",
+    "\ub300\uc548",
+    "\ud074\ub85c\ub4dc",
+    "claude",
+    "review",
+    "critique",
+    "risk",
+)
 
 
 def _local_device_payload() -> dict[str, object]:
@@ -143,6 +158,17 @@ def _render_session_status(
         "",
     ]
     return "\n".join(lines)
+
+
+def _resolve_execution_mode(prompt: str, requested_mode: str) -> str:
+    if requested_mode in {"codex", "claude", "both"}:
+        return requested_mode
+    lowered = prompt.lower()
+    if any(keyword in prompt for keyword in CLAUDE_REVIEW_KEYWORDS):
+        return "both"
+    if any(keyword in lowered for keyword in CLAUDE_REVIEW_KEYWORDS):
+        return "both"
+    return "codex"
 
 
 @router.get("/api/health")
@@ -459,12 +485,13 @@ def start_execution(project_id: int, payload: ExecutionStartRequest) -> LocalJob
             if part
         ).strip()
         project = SimpleNamespace(**detail["project"])
+        resolved_mode = _resolve_execution_mode(payload.prompt, payload.mode)
         return job_manager.start_execution(
             project=project,
             workspace_path=workspace_path,
             prompt=payload.prompt,
             handoff_text=handoff_text,
-            mode=payload.mode,
+            mode=resolved_mode,
         )
     except HTTPException:
         raise

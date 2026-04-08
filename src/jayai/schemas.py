@@ -212,7 +212,7 @@ class ProjectSyncRead(BaseModel):
 
 class ExecutionStartRequest(BaseModel):
     prompt: str = Field(min_length=1)
-    mode: Literal["codex", "claude", "both"] = "both"
+    mode: Literal["auto", "codex", "claude", "both"] = "auto"
     workspace_path: str | None = None
 
 

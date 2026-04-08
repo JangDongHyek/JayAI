@@ -6,11 +6,12 @@ import os
 import shutil
 import socket
 import subprocess
+import threading
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Literal, Sequence
+from typing import Callable, Literal, Sequence
 
 from ..config import get_settings
 from ..models import Project
@@ -30,6 +31,7 @@ from .project_context import (
 
 
 settings = get_settings()
+ProgressCallback = Callable[[str, str], None]
 WINDOWS_CLAUDE_CANDIDATES = [
     Path.home() / "AppData" / "Roaming" / "npm" / "claude.cmd",
     Path.home() / "AppData" / "Roaming" / "npm" / "claude",
@@ -106,6 +108,12 @@ def _write_text(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def _read_if_exists(path: Path) -> str:
+    if not path.exists():
+        return ""
+    return path.read_text(encoding="utf-8")
+
+
 def _decode_output(payload: bytes | None) -> str:
     data = payload or b""
     for encoding in ("utf-8", locale.getpreferredencoding(False), "cp949"):
@@ -114,6 +122,17 @@ def _decode_output(payload: bytes | None) -> str:
         except (LookupError, UnicodeDecodeError):
             continue
     return data.decode("utf-8", errors="replace")
+
+
+def _pump_stream(stream: object, sink: bytearray) -> None:
+    reader = getattr(stream, "read", None)
+    if reader is None:
+        return
+    while True:
+        chunk = reader(4096)
+        if not chunk:
+            break
+        sink.extend(chunk)
 
 
 def _is_git_repo(path: Path) -> bool:
@@ -181,30 +200,63 @@ def _run_process(
     output_path: Path,
     stdout_path: Path,
     stderr_path: Path,
+    phase_label: str,
+    progress_callback: ProgressCallback | None = None,
 ) -> AgentResult:
     started = time.perf_counter()
+    stdout_bytes = bytearray()
+    stderr_bytes = bytearray()
     try:
-        completed = subprocess.run(
+        process = subprocess.Popen(
             command,
-            input=stdin_text.encode("utf-8"),
             cwd=cwd,
             env=env,
-            capture_output=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=False,
-            timeout=timeout_sec,
         )
+        if process.stdin:
+            process.stdin.write(stdin_text.encode("utf-8"))
+            process.stdin.close()
+
+        stdout_thread = threading.Thread(target=_pump_stream, args=(process.stdout, stdout_bytes), daemon=True)
+        stderr_thread = threading.Thread(target=_pump_stream, args=(process.stderr, stderr_bytes), daemon=True)
+        stdout_thread.start()
+        stderr_thread.start()
+
+        while True:
+            returncode = process.poll()
+            elapsed_sec = int(time.perf_counter() - started)
+            streamed_output = _read_if_exists(output_path)
+            if not streamed_output:
+                streamed_output = _decode_output(bytes(stdout_bytes))
+            streamed_error = _decode_output(bytes(stderr_bytes))
+            if progress_callback:
+                preview = streamed_output.strip() or streamed_error.strip() or f"{name} running... {elapsed_sec}s"
+                progress_callback(phase_label, preview)
+            if returncode is not None:
+                break
+            if time.perf_counter() - started > timeout_sec:
+                process.kill()
+                raise subprocess.TimeoutExpired(command, timeout_sec, output=bytes(stdout_bytes), stderr=bytes(stderr_bytes))
+            time.sleep(0.75)
+
+        stdout_thread.join(timeout=1)
+        stderr_thread.join(timeout=1)
+
         duration = time.perf_counter() - started
-        stdout = _decode_output(completed.stdout)
-        stderr = _decode_output(completed.stderr)
+        stdout = _decode_output(bytes(stdout_bytes))
+        stderr = _decode_output(bytes(stderr_bytes))
         _write_text(stdout_path, stdout)
         _write_text(stderr_path, stderr)
-        output = output_path.read_text(encoding="utf-8") if output_path.exists() else stdout
+        output = _read_if_exists(output_path) or stdout
         if not output_path.exists():
             _write_text(output_path, output)
         return _build_agent_result(
             name=name,
             command=command,
-            returncode=completed.returncode,
+            returncode=process.returncode or 0,
             duration_sec=duration,
             output=output,
             stdout=stdout,
@@ -215,8 +267,8 @@ def _run_process(
         )
     except subprocess.TimeoutExpired as exc:
         duration = time.perf_counter() - started
-        stdout = _decode_output(exc.stdout)
-        stderr = _decode_output(exc.stderr)
+        stdout = _decode_output(exc.stdout if exc.stdout is not None else bytes(stdout_bytes))
+        stderr = _decode_output(exc.stderr if exc.stderr is not None else bytes(stderr_bytes))
         timeout_note = f"{name} timed out after {timeout_sec} seconds."
         _write_text(stdout_path, stdout)
         _write_text(stderr_path, stderr + ("\n" if stderr else "") + timeout_note)
@@ -262,9 +314,9 @@ def _compose_summary(mode: Literal["codex", "claude", "both"], codex: AgentResul
         if claude.final:
             chunks.append("[Claude]\n" + claude.final)
         if claude.critique:
-            chunks.append("[리스크]\n" + claude.critique)
+            chunks.append("[Claude Critique]\n" + claude.critique)
         if claude.follow_up:
-            chunks.append("[다음 작업]\n" + claude.follow_up)
+            chunks.append("[Claude Follow Up]\n" + claude.follow_up)
 
     if not chunks:
         if codex:
@@ -313,10 +365,14 @@ def execute_user_task(
     mode: Literal["codex", "claude", "both"] = "both",
     timeout_sec: int = 900,
     codex_sandbox: str = "workspace-write",
+    progress_callback: ProgressCallback | None = None,
 ) -> ExecutionResult:
     workdir = Path(workspace_path).expanduser().resolve()
     if not workdir.exists() or not workdir.is_dir():
         raise RuntimeError(f"workspace path not found: {workdir}")
+
+    if progress_callback:
+        progress_callback("preparing workspace", f"workspace: {workdir}")
 
     profile, config_path, _ = load_project_profile(workdir, docs_globs=project.docs_globs)
     context_files = collect_context_files(workdir, profile)
@@ -324,6 +380,12 @@ def execute_user_task(
     context_packet = render_context_packet(profile, config_path, context_files, tree_text)
     shared_prompt = _build_shared_prompt(project=project, prompt=prompt, handoff_text=handoff_text)
     small_context = build_claude_context_block(profile, tree_text, context_files)
+
+    if progress_callback:
+        progress_callback(
+            "context ready",
+            f"context files: {len(context_files)}\nmode: {mode}\nstrategy: {'codex_then_claude' if mode == 'both' else mode}",
+        )
 
     codex_cmd = _detect_cmd("codex", WINDOWS_CODEX_CANDIDATES) if mode in {"codex", "both"} else ""
     claude_cmd = _detect_cmd("claude", WINDOWS_CLAUDE_CANDIDATES) if mode in {"claude", "both"} else ""
@@ -354,6 +416,8 @@ def execute_user_task(
     if mode in {"codex", "both"}:
         codex_prompt = build_codex_prompt(shared_prompt, profile, context_packet)
         _write_text(run_dir / "codex_prompt.txt", codex_prompt)
+        if progress_callback:
+            progress_callback("starting Codex", "starting Codex")
         codex_result = _run_process(
             name="codex",
             command=_build_codex_command(codex_cmd, codex_output_path, codex_sandbox, workdir),
@@ -364,6 +428,8 @@ def execute_user_task(
             output_path=codex_output_path,
             stdout_path=codex_stdout_path,
             stderr_path=codex_stderr_path,
+            phase_label="running Codex",
+            progress_callback=progress_callback,
         )
 
     if mode in {"claude", "both"}:
@@ -374,6 +440,8 @@ def execute_user_task(
             codex_output = codex_result.output
         claude_prompt = build_claude_prompt(shared_prompt, profile, codex_output, codex_status, small_context)
         _write_text(run_dir / "claude_prompt.txt", claude_prompt)
+        if progress_callback:
+            progress_callback("starting Claude review", "starting Claude review")
         claude_result = _run_process(
             name="claude",
             command=_build_claude_command(claude_cmd),
@@ -384,6 +452,8 @@ def execute_user_task(
             output_path=claude_output_path,
             stdout_path=claude_stdout_path,
             stderr_path=claude_stderr_path,
+            phase_label="running Claude review",
+            progress_callback=progress_callback,
         )
 
     summary = _compose_summary(mode, codex_result, claude_result)
@@ -401,6 +471,9 @@ def execute_user_task(
         ),
     )
     _write_text(run_dir / "summary.txt", summary)
+
+    if progress_callback:
+        progress_callback("completed", summary or "completed")
 
     strategy = {
         "codex": "codex_only",

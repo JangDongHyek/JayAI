@@ -116,6 +116,11 @@ class LocalJobManager:
                 prompt=prompt,
                 handoff_text=handoff_text,
                 mode=mode,
+                progress_callback=lambda phase, output: self._update(
+                    job_id,
+                    phase=phase,
+                    output=output,
+                ),
             )
             self._update(
                 job_id,

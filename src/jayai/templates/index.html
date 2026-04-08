@@ -501,7 +501,7 @@
           <div class="meta">
             불러오기는 현재 경로 기준 <code>clone</code> 또는 <code>pull</code>.
             저장하기는 인계 반영, <code>SESSION_STATUS.md</code> 갱신, <code>git add -A</code>, <code>commit</code>, <code>push</code>.
-            실행은 항상 Codex 먼저, 이후 Claude 검토 순서.
+            기본 실행은 Codex. 지시에 검증, 리뷰, 반박, 비교, Claude 같은 문구가 있으면 Claude 검토를 추가한다.
           </div>
           <div class="actions">
             <button id="load-project" class="secondary">불러오기</button>
@@ -637,7 +637,7 @@
       document.getElementById("save-device").closest(".stack").querySelector(".meta").innerHTML = '서버 주소는 고정. <code>http://43.203.252.40/jayai-api</code>';
       document.getElementById("workspace-path").closest(".stack").querySelector(".pill").textContent = "기기별 별도 저장";
       document.getElementById("handoff-brief").closest(".stack").querySelector(".pill").textContent = "저장하기 때 반영";
-      document.querySelector(".status-bar .meta").innerHTML = '불러오기는 현재 경로 기준 <code>clone</code> 또는 <code>pull</code>. 저장하기는 인계 반영, <code>SESSION_STATUS.md</code> 갱신, <code>git add -A</code>, <code>commit</code>, <code>push</code>. 실행은 항상 Codex 먼저, 이후 Claude 검토 순서.';
+      document.querySelector(".status-bar .meta").innerHTML = '불러오기는 현재 경로 기준 <code>clone</code> 또는 <code>pull</code>. 저장하기는 인계 반영, <code>SESSION_STATUS.md</code> 갱신, <code>git add -A</code>, <code>commit</code>, <code>push</code>. 기본 실행은 Codex. 지시에 검증, 리뷰, 반박, 비교, Claude 같은 문구가 있으면 Claude 검토를 추가한다.';
       document.getElementById("output-history").previousElementSibling.textContent = "새 출력은 바로 아래 열린다. 이전 출력은 자동으로 접힌다.";
       elements.tools.innerHTML = '<div class="empty">환경 점검 전</div>';
     }
@@ -680,6 +680,25 @@
 
     function setRunMode(text) {
       elements.runModePill.textContent = text;
+    }
+
+    function modeLabel(mode) {
+      if (mode === "both") {
+        return "Codex + Claude";
+      }
+      if (mode === "claude") {
+        return "Claude";
+      }
+      return "Codex";
+    }
+
+    function statusLabel(status) {
+      return {
+        queued: "대기",
+        running: "실행 중",
+        completed: "완료",
+        failed: "실패",
+      }[status] || status;
     }
 
     function setJobMeta(text) {
@@ -987,21 +1006,23 @@
         method: "POST",
         body: JSON.stringify({
           prompt,
-          mode: "both",
+          mode: "auto",
           workspace_path: elements.workspacePath.value.trim() || null,
         }),
       });
       state.activeJobId = job.id;
       setRunBusy(true);
-      setRunMode("실행 중");
-      setJobMeta(`${job.phase} | ${job.status}`);
+      setRunMode(modeLabel(job.mode));
+      setJobMeta(`${job.phase} | ${statusLabel(job.status)}`);
       upsertOutputEntry({
         key: `job-${job.id}`,
         title: "실행",
-        status: "진행 중",
+        status: statusLabel(job.status),
         meta: job.phase,
         artifact: job.workspace_path || "",
-        text: "작업 시작. Codex 먼저 실행 후 Claude 검토 대기.",
+        text: job.mode === "both"
+          ? "작업 시작. Codex 실행 후 Claude 검토까지 진행한다."
+          : "작업 시작. Codex만 실행한다.",
       });
       startPolling();
     }
@@ -1017,12 +1038,12 @@
       }
       state.activeJobId = job.id;
       setRunBusy(true);
-      setRunMode("실행 중");
-      setJobMeta(`${job.phase} | ${job.status}`);
+      setRunMode(modeLabel(job.mode));
+      setJobMeta(`${job.phase} | ${statusLabel(job.status)}`);
       upsertOutputEntry({
         key: `job-${job.id}`,
         title: "실행",
-        status: job.status,
+        status: statusLabel(job.status),
         meta: job.phase,
         artifact: job.artifact_dir || job.workspace_path || "",
         text: job.output || job.error || "실행 중",
@@ -1048,12 +1069,12 @@
         }
         try {
           const job = await request(`${apiBase}/local/jobs/${state.activeJobId}`);
-          setJobMeta(`${job.phase} | ${job.status}`);
-          setRunMode(job.status === "completed" ? "완료" : job.status === "failed" ? "실패" : "실행 중");
+          setJobMeta(`${job.phase} | ${statusLabel(job.status)}`);
+          setRunMode(modeLabel(job.mode));
           upsertOutputEntry({
             key: `job-${job.id}`,
             title: "실행",
-            status: job.status,
+            status: statusLabel(job.status),
             meta: job.phase,
             artifact: job.artifact_dir || job.workspace_path || "",
             text: job.output || job.error || "실행 중",
