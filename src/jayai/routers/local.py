@@ -8,27 +8,32 @@ from types import SimpleNamespace
 from fastapi import APIRouter, HTTPException
 
 from ..schemas import (
-    ConversationCreate,
-    ConversationExecuteRequest,
-    ConversationExecuteResponse,
-    ConversationRead,
     DeviceRead,
+    ExecutionStartRequest,
+    GitActionRead,
+    GitActionRequest,
+    LocalBootstrapResponse,
     LocalConfigRead,
     LocalConfigWrite,
+    LocalJobRead,
+    LocalProjectDetailRead,
     LocalStatusResponse,
-    MessageRead,
     ProjectCreate,
+    ProjectDetailRead,
+    ProjectHandoffRead,
+    ProjectHandoffUpsert,
     ProjectRead,
+    ProjectUpdate,
     RunnerProbeRequest,
     RunnerProbeResponse,
-    RunRead,
     WorkspaceBindingCreate,
     WorkspaceBindingRead,
     WorkspaceScanRequest,
     WorkspaceScanResponse,
 )
+from ..services.git_ops import clone_project, pull_project, status_project
+from ..services.job_manager import job_manager
 from ..services.local_config import get_server_url, read_local_config, write_local_config
-from ..services.orchestrator import execute_user_task
 from ..services.runner import probe_local_environment, scan_workspace
 from ..services.server_api import ServerApiError, ServerClient
 
@@ -54,32 +59,26 @@ def _register_local_device(client: ServerClient) -> dict[str, object]:
 
 
 def _resolve_workspace_path(
-    client: ServerClient,
+    detail: ProjectDetailRead | dict[str, object],
     *,
-    project_id: int,
     device_id: int,
     workspace_path: str | None,
 ) -> str:
     if workspace_path:
-        resolved = str(Path(workspace_path).expanduser().resolve())
-        client.bind_workspace(
-            project_id,
-            {
-                "project_id": project_id,
-                "device_id": device_id,
-                "local_path": resolved,
-                "preferred_branch": None,
-            },
-        )
-        return resolved
+        return str(Path(workspace_path).expanduser().resolve())
 
-    bindings = client.list_bindings(project_id)
-    own_binding = next((item for item in bindings if item["device_id"] == device_id), None)
+    bindings = detail["bindings"] if isinstance(detail, dict) else detail.bindings
+    own_binding = next((item for item in bindings if item["device_id"] == device_id), None) if isinstance(detail, dict) else next((item for item in bindings if item.device_id == device_id), None)
     if own_binding:
-        return own_binding["local_path"]
-    if bindings:
-        return bindings[0]["local_path"]
-    raise HTTPException(status_code=400, detail="workspace path required")
+        return own_binding["local_path"] if isinstance(own_binding, dict) else own_binding.local_path
+    raise HTTPException(status_code=400, detail="현재 기기 경로가 아직 저장되지 않았음")
+
+
+def _active_binding_from_detail(detail: dict[str, object], device_id: int) -> WorkspaceBindingRead | None:
+    for binding in detail["bindings"]:
+        if binding["device_id"] == device_id:
+            return WorkspaceBindingRead.model_validate(binding)
+    return None
 
 
 @router.get("/api/health")
@@ -116,13 +115,27 @@ def local_status() -> LocalStatusResponse:
     )
 
 
-@router.post("/api/devices/local", response_model=DeviceRead)
-def register_local_device() -> DeviceRead:
+@router.get("/api/local/bootstrap", response_model=LocalBootstrapResponse)
+def bootstrap() -> LocalBootstrapResponse:
+    config = read_local_config()
+    server_url = config.get("server_url", "")
+    if not server_url:
+        return LocalBootstrapResponse(server_url="", server_reachable=False)
+
     try:
-        device = _register_local_device(_server_client())
-    except (RuntimeError, ServerApiError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return DeviceRead.model_validate(device)
+        client = ServerClient(server_url)
+        server_reachable = client.health().get("status") == "ok"
+        device = _register_local_device(client)
+        projects = client.list_projects()
+    except (RuntimeError, ServerApiError):
+        return LocalBootstrapResponse(server_url=server_url, server_reachable=False)
+
+    return LocalBootstrapResponse(
+        server_url=server_url,
+        server_reachable=server_reachable,
+        device=DeviceRead.model_validate(device),
+        projects=[ProjectRead.model_validate(item) for item in projects],
+    )
 
 
 @router.post("/api/runner/probe", response_model=RunnerProbeResponse)
@@ -135,16 +148,7 @@ def scan_runner_workspace(payload: WorkspaceScanRequest) -> WorkspaceScanRespons
     return scan_workspace(payload.path)
 
 
-@router.get("/api/projects", response_model=list[ProjectRead])
-def list_projects() -> list[ProjectRead]:
-    try:
-        projects = _server_client().list_projects()
-    except (RuntimeError, ServerApiError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return [ProjectRead.model_validate(project) for project in projects]
-
-
-@router.post("/api/projects", response_model=ProjectRead)
+@router.post("/api/local/projects", response_model=ProjectRead)
 def create_project(payload: ProjectCreate) -> ProjectRead:
     try:
         project = _server_client().create_project(payload.model_dump())
@@ -153,191 +157,144 @@ def create_project(payload: ProjectCreate) -> ProjectRead:
     return ProjectRead.model_validate(project)
 
 
-@router.get("/api/projects/{project_id}", response_model=ProjectRead)
-def get_project(project_id: int) -> ProjectRead:
+@router.patch("/api/local/projects/{project_id}", response_model=ProjectRead)
+def update_project(project_id: int, payload: ProjectUpdate) -> ProjectRead:
     try:
-        project = _server_client().get_project(project_id)
+        project = _server_client().update_project(project_id, payload.model_dump(exclude_unset=True))
     except (RuntimeError, ServerApiError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return ProjectRead.model_validate(project)
 
 
-@router.get("/api/projects/{project_id}/bindings", response_model=list[WorkspaceBindingRead])
-def list_bindings(project_id: int) -> list[WorkspaceBindingRead]:
+@router.get("/api/local/projects/{project_id}", response_model=LocalProjectDetailRead)
+def get_local_project_detail(project_id: int) -> LocalProjectDetailRead:
     try:
-        bindings = _server_client().list_bindings(project_id)
+        client = _server_client()
+        device = _register_local_device(client)
+        detail = client.get_project_detail(project_id)
     except (RuntimeError, ServerApiError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return [WorkspaceBindingRead.model_validate(binding) for binding in bindings]
+
+    return LocalProjectDetailRead(
+        project=ProjectRead.model_validate(detail["project"]),
+        bindings=[WorkspaceBindingRead.model_validate(item) for item in detail["bindings"]],
+        active_binding=_active_binding_from_detail(detail, device["id"]),
+        handoff=ProjectHandoffRead.model_validate(detail["handoff"]),
+    )
 
 
-@router.post("/api/projects/{project_id}/bindings", response_model=WorkspaceBindingRead)
-def bind_workspace(project_id: int, payload: WorkspaceBindingCreate) -> WorkspaceBindingRead:
+@router.post("/api/local/projects/{project_id}/binding", response_model=WorkspaceBindingRead)
+def save_binding(project_id: int, payload: GitActionRequest) -> WorkspaceBindingRead:
+    workspace_path = payload.workspace_path
+    if not workspace_path:
+        raise HTTPException(status_code=400, detail="저장할 경로가 비어 있음")
+    resolved = str(Path(workspace_path).expanduser().resolve())
     try:
-        binding_payload = payload.model_dump()
-        binding_payload["local_path"] = str(Path(payload.local_path).expanduser().resolve())
-        binding = _server_client().bind_workspace(project_id, binding_payload)
+        client = _server_client()
+        device = _register_local_device(client)
+        project = client.get_project(project_id)
+        binding = client.bind_workspace(
+            project_id,
+            {
+                "project_id": project_id,
+                "device_id": device["id"],
+                "local_path": resolved,
+                "preferred_branch": project["default_branch"],
+            },
+        )
     except (RuntimeError, ServerApiError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return WorkspaceBindingRead.model_validate(binding)
 
 
-@router.get("/api/projects/{project_id}/conversations", response_model=list[ConversationRead])
-def list_conversations(project_id: int) -> list[ConversationRead]:
+@router.put("/api/local/projects/{project_id}/handoff", response_model=ProjectHandoffRead)
+def save_handoff(project_id: int, payload: ProjectHandoffUpsert) -> ProjectHandoffRead:
     try:
-        conversations = _server_client().list_conversations(project_id)
+        handoff = _server_client().save_handoff(project_id, payload.model_dump())
     except (RuntimeError, ServerApiError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return [ConversationRead.model_validate(item) for item in conversations]
+    return ProjectHandoffRead.model_validate(handoff)
 
 
-@router.post("/api/projects/{project_id}/conversations", response_model=ConversationRead)
-def create_conversation(project_id: int, payload: ConversationCreate) -> ConversationRead:
-    try:
-        conversation = _server_client().create_conversation(project_id, payload.model_dump())
-    except (RuntimeError, ServerApiError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return ConversationRead.model_validate(conversation)
+@router.post("/api/local/projects/{project_id}/git/{action}", response_model=GitActionRead)
+def run_git_action(project_id: int, action: str, payload: GitActionRequest) -> GitActionRead:
+    if action not in {"clone", "pull", "status"}:
+        raise HTTPException(status_code=404, detail="지원하지 않는 git 동작")
 
-
-@router.get("/api/projects/conversations/{conversation_id}/messages", response_model=list[MessageRead])
-def list_messages(conversation_id: int) -> list[MessageRead]:
-    try:
-        messages = _server_client().list_messages(conversation_id)
-    except (RuntimeError, ServerApiError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return [MessageRead.model_validate(message) for message in messages]
-
-
-@router.post(
-    "/api/projects/conversations/{conversation_id}/execute",
-    response_model=ConversationExecuteResponse,
-)
-def execute_conversation(
-    conversation_id: int,
-    payload: ConversationExecuteRequest,
-) -> ConversationExecuteResponse:
     try:
         client = _server_client()
         device = _register_local_device(client)
-        conversation = client.get_conversation(conversation_id)
-        project = client.get_project(conversation["project_id"])
-        workspace_path = _resolve_workspace_path(
-            client,
-            project_id=project["id"],
-            device_id=device["id"],
-            workspace_path=payload.workspace_path,
-        )
+        detail = client.get_project_detail(project_id)
+        workspace_path = _resolve_workspace_path(detail, device_id=device["id"], workspace_path=payload.workspace_path)
+        project = detail["project"]
+        path_obj = Path(workspace_path)
 
-        client.create_message(
-            conversation_id,
-            {
-                "role": "user",
-                "agent": None,
-                "content": payload.content,
-                "model_hint": None,
-            },
-        )
-        run = client.create_run(
-            conversation_id,
-            {
-                "device_id": device["id"],
-                "strategy": "pending",
-                "status": "running",
-                "prompt_excerpt": payload.content[:500],
-                "result_summary": None,
-            },
-        )
-        result = execute_user_task(
-            project=SimpleNamespace(**project),
-            workspace_path=workspace_path,
-            prompt=payload.content,
-        )
-
-        assistant_messages: list[dict[str, object]] = []
-        if result.codex and result.codex.final:
-            assistant_messages.append(
-                {
-                    "role": "assistant",
-                    "agent": "codex",
-                    "content": result.codex.final,
-                    "model_hint": "codex",
-                }
-            )
-        if result.claude:
-            claude_content = "\n\n".join(
-                part
-                for part in [
-                    result.claude.final,
-                    f"[CRITIQUE]\n{result.claude.critique}" if result.claude.critique else "",
-                    f"[FOLLOW_UP]\n{result.claude.follow_up}" if result.claude.follow_up else "",
-                ]
-                if part
-            ).strip()
-            if claude_content:
-                assistant_messages.append(
-                    {
-                        "role": "assistant",
-                        "agent": "claude",
-                        "content": claude_content,
-                        "model_hint": "claude",
-                    }
-                )
-        assistant_messages.append(
-            {
-                "role": "assistant",
-                "agent": "jayai",
-                "content": result.summary or "Run completed.",
-                "model_hint": result.strategy,
-            }
-        )
-
-        created_messages = client.create_messages_bulk(
-            conversation_id,
-            {"messages": assistant_messages},
-        )
-        updated_run = client.update_run(
-            run["id"],
-            {
-                "strategy": result.strategy,
-                "status": "completed",
-                "result_summary": result.summary or "Run completed.",
-            },
-        )
-        return ConversationExecuteResponse(
-            run=RunRead.model_validate(updated_run),
-            messages=[MessageRead.model_validate(message) for message in created_messages],
-            workspace_path=result.workspace_path,
-            artifact_dir=result.artifact_dir,
-            strategy=result.strategy,
-        )
+        if action == "clone":
+            if not project.get("repo_url"):
+                raise HTTPException(status_code=400, detail="repo 주소가 없음")
+            result = clone_project(project["repo_url"], path_obj, project["default_branch"])
+        elif action == "pull":
+            result = pull_project(path_obj, project["default_branch"])
+        else:
+            result = status_project(path_obj)
     except HTTPException:
         raise
     except (RuntimeError, ServerApiError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
-        try:
-            client = _server_client()
-            run_id = locals().get("run", {}).get("id")
-            if run_id:
-                client.update_run(
-                    run_id,
-                    {
-                        "strategy": "error",
-                        "status": "failed",
-                        "result_summary": str(exc),
-                    },
-                )
-            if "conversation_id" in locals():
-                client.create_message(
-                    conversation_id,
-                    {
-                        "role": "assistant",
-                        "agent": "jayai",
-                        "content": f"Run failed\n{exc}",
-                        "model_hint": "error",
-                    },
-                )
-        except Exception:
-            pass
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return GitActionRead(
+        action=result.action,
+        success=result.success,
+        summary=result.summary,
+        stdout=result.stdout,
+        stderr=result.stderr,
+        command=result.command,
+        workspace_path=str(path_obj),
+    )
+
+
+@router.post("/api/local/projects/{project_id}/jobs", response_model=LocalJobRead)
+def start_execution(project_id: int, payload: ExecutionStartRequest) -> LocalJobRead:
+    try:
+        client = _server_client()
+        device = _register_local_device(client)
+        detail = client.get_project_detail(project_id)
+        workspace_path = _resolve_workspace_path(detail, device_id=device["id"], workspace_path=payload.workspace_path)
+        handoff = detail["handoff"]
+        handoff_text = "\n\n".join(
+            part
+            for part in [
+                f"[프로젝트 설명]\n{handoff['project_brief']}" if handoff.get("project_brief") else "",
+                f"[현재 상태]\n{handoff['current_status']}" if handoff.get("current_status") else "",
+                f"[다음 작업]\n{handoff['next_steps']}" if handoff.get("next_steps") else "",
+                f"[주의사항]\n{handoff['notes']}" if handoff.get("notes") else "",
+            ]
+            if part
+        ).strip()
+        project = SimpleNamespace(**detail["project"])
+        return job_manager.start_execution(
+            project=project,
+            workspace_path=workspace_path,
+            prompt=payload.prompt,
+            handoff_text=handoff_text,
+            mode=payload.mode,
+        )
+    except HTTPException:
+        raise
+    except ServerApiError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.get("/api/local/jobs/active", response_model=LocalJobRead | None)
+def get_active_job() -> LocalJobRead | None:
+    return job_manager.active()
+
+
+@router.get("/api/local/jobs/{job_id}", response_model=LocalJobRead)
+def get_job(job_id: str) -> LocalJobRead:
+    try:
+        return job_manager.get(job_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

@@ -6,3 +6,4 @@ __pycache__/
 *.pyd
 uvicorn*.out.txt
 uvicorn*.err.txt
+desktop/node_modules/

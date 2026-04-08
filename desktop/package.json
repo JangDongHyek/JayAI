@@ -1,0 +1,13 @@
+{
+  "name": "jayai-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JayAI desktop shell",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^38.0.0"
+  }
+}

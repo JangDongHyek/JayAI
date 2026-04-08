@@ -7,27 +7,25 @@ import shutil
 import socket
 import subprocess
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Sequence
+from typing import Literal, Sequence
 
 from ..config import get_settings
 from ..models import Project
-from .git_ops import GitActionResult, clone_project, detect_git_action, pull_project, status_project
 from .project_context import (
     ContextFile,
     ProjectProfile,
     build_claude_context_block,
     build_claude_prompt,
     build_codex_prompt,
+    clip,
     collect_context_files,
     extract_section,
     load_project_profile,
     render_context_packet,
     render_tree,
-    resolve_strategy,
 )
 
 
@@ -68,14 +66,13 @@ class AgentResult:
 
 @dataclass
 class ExecutionResult:
-    mode: str
+    mode: Literal["codex", "claude", "both"]
     strategy: str
     workspace_path: str
     artifact_dir: str | None
     summary: str
     codex: AgentResult | None
     claude: AgentResult | None
-    git: GitActionResult | None
 
 
 def _first_existing(paths: Sequence[Path]) -> str | None:
@@ -138,6 +135,39 @@ def _build_codex_command(codex_cmd: str, output_path: Path, sandbox: str, workdi
 
 def _build_claude_command(claude_cmd: str) -> list[str]:
     return [claude_cmd, "-p", "--permission-mode", "acceptEdits"]
+
+
+def _build_agent_result(
+    *,
+    name: str,
+    command: list[str],
+    returncode: int,
+    duration_sec: float,
+    output: str,
+    stdout: str,
+    stderr: str,
+    output_path: Path,
+    stdout_path: Path,
+    stderr_path: Path,
+) -> AgentResult:
+    return AgentResult(
+        name=name,
+        command=command,
+        returncode=returncode,
+        duration_sec=duration_sec,
+        output=output,
+        stdout=stdout,
+        stderr=stderr,
+        output_path=str(output_path),
+        stdout_path=str(stdout_path),
+        stderr_path=str(stderr_path),
+        success=returncode == 0,
+        final=extract_section(output, "FINAL"),
+        critique=extract_section(output, "CRITIQUE"),
+        follow_up=extract_section(output, "FOLLOW_UP"),
+        project_context=extract_section(output, "PROJECT_CONTEXT"),
+        handoff=extract_section(output, "HANDOFF_FOR_CLAUDE"),
+    )
 
 
 def _run_process(
@@ -205,124 +235,73 @@ def _run_process(
         )
 
 
-def _build_agent_result(
+def _build_shared_prompt(
     *,
-    name: str,
-    command: list[str],
-    returncode: int,
-    duration_sec: float,
-    output: str,
-    stdout: str,
-    stderr: str,
-    output_path: Path,
-    stdout_path: Path,
-    stderr_path: Path,
-) -> AgentResult:
-    return AgentResult(
-        name=name,
-        command=command,
-        returncode=returncode,
-        duration_sec=duration_sec,
-        output=output,
-        stdout=stdout,
-        stderr=stderr,
-        output_path=str(output_path),
-        stdout_path=str(stdout_path),
-        stderr_path=str(stderr_path),
-        success=returncode == 0,
-        final=extract_section(output, "FINAL"),
-        critique=extract_section(output, "CRITIQUE"),
-        follow_up=extract_section(output, "FOLLOW_UP"),
-        project_context=extract_section(output, "PROJECT_CONTEXT"),
-        handoff=extract_section(output, "HANDOFF_FOR_CLAUDE"),
-    )
+    project: Project,
+    prompt: str,
+    handoff_text: str,
+) -> str:
+    lines = [
+        f"Project title: {project.title}",
+        f"Project slug: {project.slug}",
+        f"Default branch: {project.default_branch}",
+        f"Repo: {project.repo_url or '(none)'}",
+        "",
+    ]
+    if handoff_text.strip():
+        lines.extend(["CURRENT_HANDOFF", handoff_text.strip(), ""])
+    lines.extend(["USER_REQUEST", prompt.strip()])
+    return "\n".join(lines).strip()
 
 
-def _run_parallel_tasks(
-    tasks: list[tuple[str, list[str], str, Path, Path, Path]],
-    cwd: Path,
-    env: dict[str, str],
-    timeout_sec: int,
-) -> dict[str, AgentResult]:
-    results: dict[str, AgentResult] = {}
-    with ThreadPoolExecutor(max_workers=len(tasks)) as executor:
-        future_map = {
-            executor.submit(
-                _run_process,
-                name=name,
-                command=command,
-                stdin_text=stdin_text,
-                cwd=cwd,
-                env=env,
-                timeout_sec=timeout_sec,
-                output_path=output_path,
-                stdout_path=stdout_path,
-                stderr_path=stderr_path,
-            ): name
-            for name, command, stdin_text, output_path, stdout_path, stderr_path in tasks
-        }
-        for future in as_completed(future_map):
-            result = future.result()
-            results[result.name] = result
-    return results
-
-
-def _compose_summary(codex: AgentResult, claude: AgentResult) -> str:
+def _compose_summary(mode: Literal["codex", "claude", "both"], codex: AgentResult | None, claude: AgentResult | None) -> str:
     chunks: list[str] = []
-    if codex.final:
-        chunks.append(f"[Codex]\n{codex.final}")
-    if claude.final:
-        chunks.append(f"[Claude]\n{claude.final}")
-    if claude.critique:
-        chunks.append(f"[검토]\n{claude.critique}")
-    if claude.follow_up:
-        chunks.append(f"[다음]\n{claude.follow_up}")
+    if codex and (codex.final or codex.project_context):
+        chunks.append("[Codex]\n" + (codex.final or codex.output.strip()))
+    if claude and (claude.final or claude.critique or claude.follow_up):
+        if claude.final:
+            chunks.append("[Claude]\n" + claude.final)
+        if claude.critique:
+            chunks.append("[리스크]\n" + claude.critique)
+        if claude.follow_up:
+            chunks.append("[다음 작업]\n" + claude.follow_up)
+
+    if not chunks:
+        if codex:
+            chunks.append(f"[Codex]\n{clip(codex.output, 6000)}")
+        if claude:
+            chunks.append(f"[Claude]\n{clip(claude.output, 6000)}")
+
+    if mode == "codex" and codex and not chunks:
+        chunks.append(codex.output)
+    if mode == "claude" and claude and not chunks:
+        chunks.append(claude.output)
     return "\n\n".join(chunk for chunk in chunks if chunk).strip()
 
 
 def _render_meta(
     *,
     prompt: str,
+    mode: str,
     workdir: Path,
-    strategy: str,
     profile: ProjectProfile,
     config_path: Path | None,
     context_files: list[ContextFile],
-    codex: AgentResult,
-    claude: AgentResult,
+    codex: AgentResult | None,
+    claude: AgentResult | None,
 ) -> str:
     payload = {
         "prompt": prompt,
+        "mode": mode,
         "workdir": str(workdir),
-        "strategy": strategy,
         "project_name": profile.project_name,
         "config_path": str(config_path) if config_path else "",
         "hostname": socket.gethostname(),
         "context_files": [asdict(item) for item in context_files],
-        "codex": asdict(codex),
-        "claude": asdict(claude),
+        "codex": asdict(codex) if codex else None,
+        "claude": asdict(claude) if claude else None,
     }
     return json.dumps(payload, indent=2, ensure_ascii=False)
-
-
-def _maybe_handle_git_task(project: Project, prompt: str, workspace_path: Path) -> GitActionResult | None:
-    action = detect_git_action(prompt)
-    if not action:
-        return None
-    if action == "clone":
-        if not project.repo_url:
-            return GitActionResult(
-                action="clone",
-                success=False,
-                summary="git clone 불가. 프로젝트 repo_url 없음.",
-                stdout="",
-                stderr="repo_url missing",
-                command=[],
-            )
-        return clone_project(project.repo_url, workspace_path, project.default_branch)
-    if action == "pull":
-        return pull_project(workspace_path, project.default_branch)
-    return status_project(workspace_path)
 
 
 def execute_user_task(
@@ -330,23 +309,12 @@ def execute_user_task(
     project: Project,
     workspace_path: str,
     prompt: str,
+    handoff_text: str = "",
+    mode: Literal["codex", "claude", "both"] = "both",
     timeout_sec: int = 900,
     codex_sandbox: str = "workspace-write",
 ) -> ExecutionResult:
     workdir = Path(workspace_path).expanduser().resolve()
-    git_result = _maybe_handle_git_task(project, prompt, workdir)
-    if git_result:
-        return ExecutionResult(
-            mode="git",
-            strategy="git",
-            workspace_path=str(workdir),
-            artifact_dir=None,
-            summary="\n".join(part for part in [git_result.summary, git_result.stdout, git_result.stderr] if part).strip(),
-            codex=None,
-            claude=None,
-            git=git_result,
-        )
-
     if not workdir.exists() or not workdir.is_dir():
         raise RuntimeError(f"workspace path not found: {workdir}")
 
@@ -354,10 +322,11 @@ def execute_user_task(
     context_files = collect_context_files(workdir, profile)
     tree_text = render_tree(workdir, profile)
     context_packet = render_context_packet(profile, config_path, context_files, tree_text)
-    strategy = resolve_strategy(profile, has_context=bool(context_files))
+    shared_prompt = _build_shared_prompt(project=project, prompt=prompt, handoff_text=handoff_text)
+    small_context = build_claude_context_block(profile, tree_text, context_files)
 
-    codex_cmd = _detect_cmd("codex", WINDOWS_CODEX_CANDIDATES)
-    claude_cmd = _detect_cmd("claude", WINDOWS_CLAUDE_CANDIDATES)
+    codex_cmd = _detect_cmd("codex", WINDOWS_CODEX_CANDIDATES) if mode in {"codex", "both"} else ""
+    claude_cmd = _detect_cmd("claude", WINDOWS_CLAUDE_CANDIDATES) if mode in {"claude", "both"} else ""
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     run_dir = settings.runs_dir / run_id
@@ -375,42 +344,16 @@ def execute_user_task(
     if git_bash:
         common_env.setdefault("CLAUDE_CODE_GIT_BASH_PATH", git_bash)
 
-    codex_prompt = build_codex_prompt(prompt, profile, context_packet)
-    small_context = build_claude_context_block(profile, tree_text, context_files)
+    codex_result: AgentResult | None = None
+    claude_result: AgentResult | None = None
 
     _write_text(run_dir / "user_prompt.txt", prompt)
+    _write_text(run_dir / "shared_prompt.txt", shared_prompt)
     _write_text(run_dir / "context_packet.txt", context_packet)
-    _write_text(run_dir / "codex_prompt.txt", codex_prompt)
 
-    if strategy == "parallel":
-        claude_prompt = build_claude_prompt(prompt, profile, None, "not_run", small_context)
-        _write_text(run_dir / "claude_prompt.txt", claude_prompt)
-        results = _run_parallel_tasks(
-            [
-                (
-                    "codex",
-                    _build_codex_command(codex_cmd, codex_output_path, codex_sandbox, workdir),
-                    codex_prompt,
-                    codex_output_path,
-                    codex_stdout_path,
-                    codex_stderr_path,
-                ),
-                (
-                    "claude",
-                    _build_claude_command(claude_cmd),
-                    claude_prompt,
-                    claude_output_path,
-                    claude_stdout_path,
-                    claude_stderr_path,
-                ),
-            ],
-            workdir,
-            common_env,
-            timeout_sec,
-        )
-        codex_result = results["codex"]
-        claude_result = results["claude"]
-    else:
+    if mode in {"codex", "both"}:
+        codex_prompt = build_codex_prompt(shared_prompt, profile, context_packet)
+        _write_text(run_dir / "codex_prompt.txt", codex_prompt)
         codex_result = _run_process(
             name="codex",
             command=_build_codex_command(codex_cmd, codex_output_path, codex_sandbox, workdir),
@@ -422,8 +365,14 @@ def execute_user_task(
             stdout_path=codex_stdout_path,
             stderr_path=codex_stderr_path,
         )
-        claude_status = "ok" if codex_result.success else f"failed rc={codex_result.returncode}"
-        claude_prompt = build_claude_prompt(prompt, profile, codex_result.output, claude_status, small_context)
+
+    if mode in {"claude", "both"}:
+        codex_status = "not_run"
+        codex_output = None
+        if codex_result:
+            codex_status = "ok" if codex_result.success else f"failed rc={codex_result.returncode}"
+            codex_output = codex_result.output
+        claude_prompt = build_claude_prompt(shared_prompt, profile, codex_output, codex_status, small_context)
         _write_text(run_dir / "claude_prompt.txt", claude_prompt)
         claude_result = _run_process(
             name="claude",
@@ -437,13 +386,13 @@ def execute_user_task(
             stderr_path=claude_stderr_path,
         )
 
-    summary = _compose_summary(codex_result, claude_result)
+    summary = _compose_summary(mode, codex_result, claude_result)
     _write_text(
         run_dir / "meta.json",
         _render_meta(
             prompt=prompt,
+            mode=mode,
             workdir=workdir,
-            strategy=strategy,
             profile=profile,
             config_path=config_path,
             context_files=context_files,
@@ -453,13 +402,17 @@ def execute_user_task(
     )
     _write_text(run_dir / "summary.txt", summary)
 
+    strategy = {
+        "codex": "codex_only",
+        "claude": "claude_only",
+        "both": "codex_then_claude",
+    }[mode]
     return ExecutionResult(
-        mode="orchestrated",
+        mode=mode,
         strategy=strategy,
         workspace_path=str(workdir),
         artifact_dir=str(run_dir),
         summary=summary,
         codex=codex_result,
         claude=claude_result,
-        git=None,
     )

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,23 +13,6 @@ class GitActionResult:
     stdout: str
     stderr: str
     command: list[str]
-
-
-def detect_git_action(prompt: str) -> str | None:
-    normalized = prompt.lower()
-    if any(token in normalized for token in ("git clone", " clone ", "clone해", "clone 해")):
-        return "clone"
-    if "가져와" in prompt or "클론" in prompt:
-        return "clone"
-    if any(token in normalized for token in ("git pull", " pull ", "pull해", "pull 해")):
-        return "pull"
-    if any(token in prompt for token in ("업데이트", "동기화", "최신으로")):
-        return "pull"
-    if any(token in normalized for token in ("git status", " status ", "status해", "status 해")):
-        return "status"
-    if re.search(r"\b상태\b", prompt) or "변경사항" in prompt:
-        return "status"
-    return None
 
 
 def is_git_repo(path: Path) -> bool:
@@ -56,11 +38,12 @@ def clone_project(repo_url: str, workspace_path: Path, default_branch: str) -> G
             return GitActionResult(
                 action="clone",
                 success=False,
-                summary=f"클론 중단. 대상 경로가 비어있지 않음: {workspace_path}",
+                summary=f"git clone 중단. 대상 경로가 비어 있지 않음: {workspace_path}",
                 stdout="",
                 stderr="target directory is not empty",
                 command=["git", "clone", repo_url, str(workspace_path)],
             )
+
     workspace_path.parent.mkdir(parents=True, exist_ok=True)
     command = ["git", "clone", "--branch", default_branch, repo_url, str(workspace_path)]
     code, stdout, stderr = _run_git(command)
@@ -94,6 +77,7 @@ def pull_project(workspace_path: Path, default_branch: str, fallback_action: str
             stderr="not a git repository",
             command=["git", "pull", "--ff-only", "origin", default_branch],
         )
+
     command = ["git", "pull", "--ff-only", "origin", default_branch]
     code, stdout, stderr = _run_git(command, cwd=workspace_path)
     summary = f"git pull {'성공' if code == 0 else '실패'}: {workspace_path}"
@@ -126,6 +110,7 @@ def status_project(workspace_path: Path) -> GitActionResult:
             stderr="not a git repository",
             command=["git", "status", "--short", "--branch"],
         )
+
     command = ["git", "status", "--short", "--branch"]
     code, stdout, stderr = _run_git(command, cwd=workspace_path)
     summary = f"git status {'성공' if code == 0 else '실패'}: {workspace_path}"

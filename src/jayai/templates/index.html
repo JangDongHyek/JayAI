@@ -6,19 +6,17 @@
   <title>{{ app_name }}</title>
   <style>
     :root {
-      --bg: #f2ede4;
-      --panel: rgba(255, 251, 244, 0.9);
-      --line: rgba(91, 73, 47, 0.18);
-      --ink: #1f1a15;
-      --muted: #665f56;
-      --accent: #0d7664;
-      --accent-soft: rgba(13, 118, 100, 0.12);
-      --accent-strong: #0a5a4c;
-      --codex: #1148a0;
-      --claude: #8a4d12;
-      --jayai: #0d7664;
-      --danger: #a11b3a;
-      --shadow: 0 24px 60px rgba(31, 26, 21, 0.08);
+      --bg: #f3ede3;
+      --panel: rgba(255, 251, 245, 0.92);
+      --line: rgba(77, 59, 38, 0.16);
+      --ink: #211a15;
+      --muted: #6d6459;
+      --accent: #0d6d5d;
+      --accent-strong: #094f44;
+      --accent-soft: rgba(13, 109, 93, 0.1);
+      --warn: #9a4d12;
+      --error: #a11b3a;
+      --shadow: 0 22px 60px rgba(31, 26, 21, 0.08);
     }
 
     * { box-sizing: border-box; }
@@ -29,70 +27,69 @@
       color: var(--ink);
       font-family: "Pretendard", "Segoe UI", sans-serif;
       background:
-        radial-gradient(circle at 15% 10%, rgba(13, 118, 100, 0.16), transparent 26%),
-        radial-gradient(circle at 88% 0%, rgba(17, 72, 160, 0.14), transparent 22%),
-        linear-gradient(180deg, #e8dfd1 0%, var(--bg) 50%, #efe8dc 100%);
+        radial-gradient(circle at 10% 0%, rgba(13, 109, 93, 0.14), transparent 24%),
+        radial-gradient(circle at 95% 10%, rgba(154, 77, 18, 0.12), transparent 20%),
+        linear-gradient(180deg, #e9e1d4 0%, var(--bg) 48%, #efe7db 100%);
     }
 
     button, input, textarea { font: inherit; }
 
     .app {
-      max-width: 1480px;
+      max-width: 1560px;
       margin: 0 auto;
-      padding: 22px;
+      padding: 18px;
       display: grid;
-      gap: 18px;
-    }
-
-    .hero {
-      display: grid;
-      grid-template-columns: 1.25fr 0.75fr;
       gap: 18px;
     }
 
     .card {
       background: var(--panel);
-      backdrop-filter: blur(18px);
       border: 1px solid var(--line);
       border-radius: 24px;
       box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
     }
 
-    .hero-main { padding: 24px 26px; }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
+    }
+
+    .hero-main,
+    .hero-side {
+      padding: 22px 24px;
+    }
 
     .hero-main h1 {
-      margin: 14px 0 0;
-      font-size: clamp(2rem, 4vw, 3.2rem);
-      line-height: 0.96;
+      margin: 10px 0 0;
+      font-size: clamp(2rem, 4vw, 3.1rem);
+      line-height: 0.95;
       letter-spacing: -0.04em;
     }
 
     .hero-main p {
       margin: 14px 0 0;
-      max-width: 58ch;
       color: var(--muted);
       line-height: 1.55;
-      font-size: 0.96rem;
+      max-width: 62ch;
     }
 
-    .eyebrow,
     .pill {
       display: inline-flex;
       align-items: center;
       gap: 6px;
       padding: 7px 12px;
       border-radius: 999px;
-      font-size: 0.78rem;
-      letter-spacing: 0.04em;
       background: var(--accent-soft);
       color: var(--accent-strong);
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
     }
 
     .hero-side {
-      padding: 20px;
       display: grid;
       gap: 12px;
-      align-content: start;
     }
 
     .mini {
@@ -102,21 +99,20 @@
       background: rgba(255, 255, 255, 0.66);
     }
 
-    .mini label,
-    .row label {
+    .mini strong {
       display: block;
       margin-bottom: 6px;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       color: var(--muted);
-      text-transform: uppercase;
       letter-spacing: 0.05em;
+      text-transform: uppercase;
     }
 
     .layout {
       display: grid;
-      grid-template-columns: 320px 340px minmax(0, 1fr);
+      grid-template-columns: 300px 460px minmax(0, 1fr);
       gap: 18px;
-      min-height: 72vh;
+      min-height: 74vh;
     }
 
     .column {
@@ -124,30 +120,35 @@
       display: grid;
       gap: 14px;
       align-content: start;
+      min-height: 0;
     }
 
-    .section-head,
-    .chat-header {
+    .section-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
     }
 
-    .section-head h2,
-    .chat-header h2 {
+    .section-head h2 {
       margin: 0;
       font-size: 1rem;
       letter-spacing: -0.02em;
     }
 
     .row,
-    .project-form,
-    .workspace-tools,
-    .conversation-tools,
-    .run-shell {
+    .stack {
       display: grid;
       gap: 10px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
     }
 
     input, textarea {
@@ -155,14 +156,14 @@
       padding: 12px 13px;
       border-radius: 14px;
       border: 1px solid var(--line);
-      background: rgba(255,255,255,0.94);
+      background: rgba(255, 255, 255, 0.94);
       color: var(--ink);
     }
 
     textarea {
       resize: vertical;
-      min-height: 110px;
-      line-height: 1.5;
+      min-height: 120px;
+      line-height: 1.55;
     }
 
     .actions {
@@ -174,27 +175,31 @@
     button {
       border: 0;
       border-radius: 999px;
-      padding: 11px 15px;
+      padding: 10px 15px;
       cursor: pointer;
       background: var(--accent);
       color: white;
     }
 
     button.secondary {
-      background: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.84);
       color: var(--ink);
       border: 1px solid var(--line);
     }
 
+    button.warn {
+      background: var(--warn);
+    }
+
     button:disabled {
-      opacity: 0.6;
+      opacity: 0.55;
       cursor: default;
     }
 
     .list {
       display: grid;
       gap: 10px;
-      max-height: 360px;
+      max-height: 70vh;
       overflow: auto;
       padding-right: 4px;
     }
@@ -203,140 +208,96 @@
       padding: 14px;
       border-radius: 18px;
       border: 1px solid var(--line);
-      background: rgba(255,255,255,0.7);
+      background: rgba(255,255,255,0.72);
       display: grid;
-      gap: 6px;
+      gap: 5px;
       cursor: pointer;
     }
 
     .item.active {
-      border-color: rgba(13, 118, 100, 0.46);
-      background: linear-gradient(180deg, rgba(13,118,100,0.12), rgba(255,255,255,0.92));
+      border-color: rgba(13, 109, 93, 0.42);
+      background: linear-gradient(180deg, rgba(13,109,93,0.12), rgba(255,255,255,0.94));
     }
 
     .meta {
       color: var(--muted);
       font-size: 0.85rem;
-      line-height: 1.45;
-    }
-
-    .chat-card {
-      padding: 18px;
-      display: grid;
-      grid-template-rows: auto auto minmax(0, 1fr) auto auto;
-      gap: 14px;
-      min-height: 0;
-    }
-
-    .messages {
-      border-radius: 20px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.7);
-      padding: 14px;
-      overflow: auto;
-      min-height: 420px;
-      display: grid;
-      gap: 12px;
-    }
-
-    .bubble {
-      max-width: min(78ch, 90%);
-      padding: 13px 14px;
-      border-radius: 18px;
-      line-height: 1.55;
+      line-height: 1.5;
       white-space: pre-wrap;
-      word-break: break-word;
     }
 
-    .bubble.user {
-      justify-self: end;
-      background: linear-gradient(180deg, #131313, #272727);
-      color: #f6f2eb;
+    .two-up {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
     }
 
-    .bubble.assistant {
-      justify-self: start;
-      background: rgba(255,255,255,0.94);
-      color: var(--ink);
+    .tool-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .tool-item {
+      padding: 10px 12px;
+      border-radius: 14px;
       border: 1px solid var(--line);
+      background: rgba(255,255,255,0.74);
     }
 
-    .bubble.codex { border-left: 4px solid var(--codex); }
-    .bubble.claude { border-left: 4px solid var(--claude); }
-    .bubble.jayai { border-left: 4px solid var(--jayai); }
-    .bubble.error { border-left: 4px solid var(--danger); }
-
-    .bubble-head {
+    .status-bar {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-      font-size: 0.8rem;
-    }
-
-    .agent-badge {
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: rgba(13,118,100,0.1);
-      color: var(--accent-strong);
-    }
-
-    .agent-codex { background: rgba(17,72,160,0.1); color: var(--codex); }
-    .agent-claude { background: rgba(138,77,18,0.1); color: var(--claude); }
-    .agent-jayai { background: rgba(13,118,100,0.1); color: var(--jayai); }
-
-    .composer-note {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .composer-note span {
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 0.78rem;
-      background: rgba(255,255,255,0.8);
-      border: 1px solid var(--line);
-      color: var(--muted);
-    }
-
-    .run-shell {
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
       border-radius: 18px;
       border: 1px solid var(--line);
-      background: rgba(255,255,255,0.68);
-      padding: 14px;
+      background: rgba(255,255,255,0.72);
     }
 
     pre {
       margin: 0;
+      min-height: 360px;
+      padding: 16px;
+      border-radius: 20px;
+      background: linear-gradient(180deg, #1d1f22, #111214);
+      color: #f1eadf;
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 0.87rem;
+      line-height: 1.55;
       white-space: pre-wrap;
       word-break: break-word;
-      font-family: "Cascadia Code", "Consolas", monospace;
-      font-size: 0.86rem;
-      line-height: 1.52;
-      color: #f3ece3;
-      background: linear-gradient(180deg, #1c1d1f, #111214);
-      border-radius: 18px;
-      padding: 16px;
-      min-height: 160px;
+      overflow: auto;
     }
 
     .empty {
       padding: 16px;
-      border: 1px dashed rgba(91, 73, 47, 0.32);
       border-radius: 18px;
-      color: var(--muted);
+      border: 1px dashed rgba(77, 59, 38, 0.25);
       background: rgba(255,255,255,0.56);
+      color: var(--muted);
     }
 
-    @media (max-width: 1220px) {
-      .layout { grid-template-columns: 1fr 1fr; }
-      .chat-card { grid-column: 1 / -1; }
+    @media (max-width: 1320px) {
+      .layout {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .workbench {
+        grid-column: 1 / -1;
+      }
     }
 
-    @media (max-width: 900px) {
-      .hero, .layout { grid-template-columns: 1fr; }
-      .app { padding: 14px; }
+    @media (max-width: 980px) {
+      .hero,
+      .layout,
+      .two-up {
+        grid-template-columns: 1fr;
+      }
+
+      .app {
+        padding: 12px;
+      }
     }
   </style>
 </head>
@@ -344,30 +305,26 @@
   <main class="app">
     <section class="hero">
       <section class="card hero-main">
-        <span class="eyebrow">프로젝트 기반 멀티 에이전트</span>
+        <span class="pill">단일 사용자 멀티디바이스 작업용</span>
         <h1>{{ app_name }}</h1>
-        <p>Codex가 프로젝트 파일을 먼저 읽고, Claude가 검토한다. 프로젝트, 워크스페이스 경로, 대화 세션, 실행 로그를 한 화면에서 다룬다.</p>
+        <p>대화 기록을 억지로 이어붙이지 않는다. 프로젝트 정보, 기기별 경로, 현재 인계만 서버에 저장하고 실제 작업은 항상 로컬에서 실행한다.</p>
       </section>
       <section class="card hero-side">
         <div class="mini">
-          <label>서버 API</label>
-          <div class="row">
-            <input id="server-url" placeholder="http://43.203.252.40/jayai-api">
-          </div>
-          <div id="server-meta" class="meta">서버 미설정</div>
+          <strong>중앙 서버</strong>
+          <div id="server-meta" class="meta">미설정</div>
         </div>
         <div class="mini">
-          <label>로컬 장치</label>
+          <strong>현재 기기</strong>
           <div id="device-meta" class="meta">확인 중...</div>
         </div>
         <div class="mini">
-          <label>러너 상태</label>
-          <div id="runner-meta" class="meta">아직 점검 안 함</div>
+          <strong>활성 작업</strong>
+          <div id="job-meta" class="meta">없음</div>
         </div>
         <div class="actions">
-          <button id="save-server" class="secondary">서버 저장</button>
-          <button id="probe-runner">CLI 점검</button>
           <button id="refresh-all" class="secondary">새로고침</button>
+          <button id="probe-runner">환경 점검</button>
         </div>
       </section>
     </section>
@@ -376,125 +333,211 @@
       <section class="card column">
         <div class="section-head">
           <h2>프로젝트</h2>
-          <span class="pill">repo + 문서 + 세션</span>
+          <span class="pill" id="project-count">0개</span>
         </div>
-        <section class="project-form">
+
+        <section class="stack">
           <div class="row">
-            <label for="project-slug">슬러그</label>
-            <input id="project-slug" placeholder="ai-macro">
+            <label for="server-url">서버 주소</label>
+            <input id="server-url" placeholder="http://43.203.252.40/jayai-api">
+          </div>
+          <div class="actions">
+            <button id="save-server" class="secondary">서버 저장</button>
+          </div>
+        </section>
+
+        <section class="stack">
+          <div class="section-head">
+            <h2>새 프로젝트</h2>
           </div>
           <div class="row">
-            <label for="project-title">표시 이름</label>
-            <input id="project-title" placeholder="AI Macro 또는 JayAI">
+            <label for="new-slug">슬러그</label>
+            <input id="new-slug" placeholder="ai-macro">
           </div>
           <div class="row">
-            <label for="project-repo">저장소 주소</label>
-            <input id="project-repo" placeholder="git@github.com:... 또는 https://...">
+            <label for="new-title">표시 이름</label>
+            <input id="new-title" placeholder="AI Macro">
+          </div>
+          <div class="row">
+            <label for="new-repo">git 저장소</label>
+            <input id="new-repo" placeholder="git@github.com:...">
           </div>
           <div class="actions">
             <button id="create-project">프로젝트 추가</button>
           </div>
         </section>
-        <div class="list" id="projects"></div>
+
+        <div class="list" id="projects">
+          <div class="empty">서버 연결 후 프로젝트를 불러온다.</div>
+        </div>
       </section>
 
       <section class="card column">
         <div class="section-head">
-          <h2>워크스페이스 / 세션</h2>
-          <span class="pill">경로 연결 + 이어서 작업</span>
+          <h2>프로젝트 상세</h2>
+          <span class="pill" id="active-project-pill">선택 필요</span>
         </div>
-        <section class="workspace-tools">
+
+        <section class="stack">
+          <div class="row">
+            <label for="project-title">프로젝트 이름</label>
+            <input id="project-title" placeholder="프로젝트 선택 필요">
+          </div>
+          <div class="two-up">
+            <div class="row">
+              <label for="project-repo">git 저장소</label>
+              <input id="project-repo" placeholder="git@github.com:...">
+            </div>
+            <div class="row">
+              <label for="project-branch">기본 브랜치</label>
+              <input id="project-branch" placeholder="main">
+            </div>
+          </div>
+          <div class="actions">
+            <button id="save-project-meta">프로젝트 정보 저장</button>
+          </div>
+        </section>
+
+        <section class="stack">
+          <div class="section-head">
+            <h2>현재 기기 경로</h2>
+            <span class="pill">기기별로 따로 저장</span>
+          </div>
           <div class="row">
             <label for="workspace-path">로컬 폴더 경로</label>
             <input id="workspace-path" placeholder="C:\path\to\repo">
           </div>
           <div class="actions">
             <button id="save-binding">경로 저장</button>
-            <button id="scan-workspace" class="secondary">경로 스캔</button>
+            <button id="scan-workspace" class="secondary">폴더 스캔</button>
           </div>
-          <div id="workspace-meta" class="meta">프로젝트를 먼저 선택해</div>
+          <div id="binding-meta" class="meta">선택된 프로젝트 없음</div>
         </section>
-        <section class="conversation-tools">
+
+        <section class="stack">
           <div class="section-head">
-            <h2>대화 목록</h2>
-            <button id="new-conversation" class="secondary">새 대화</button>
+            <h2>인계 정보</h2>
+            <span class="pill">자동 저장 안 함</span>
           </div>
-          <div class="list" id="conversations"></div>
-        </section>
-        <section class="run-shell">
-          <div class="section-head">
-            <h2>최근 실행</h2>
-            <span class="pill" id="run-strategy">대기</span>
+          <div class="row">
+            <label for="handoff-brief">프로젝트 설명</label>
+            <textarea id="handoff-brief" placeholder="이 프로젝트가 뭔지, 목적이 뭔지"></textarea>
           </div>
-          <div id="run-meta" class="meta">아직 실행 안 함</div>
-          <pre id="run-output">최근 실행 결과가 여기에 표시된다.</pre>
+          <div class="row">
+            <label for="handoff-status">현재 상태</label>
+            <textarea id="handoff-status" placeholder="지금 어디까지 됐는지"></textarea>
+          </div>
+          <div class="row">
+            <label for="handoff-next">다음 작업</label>
+            <textarea id="handoff-next" placeholder="다음에 무엇을 해야 하는지"></textarea>
+          </div>
+          <div class="row">
+            <label for="handoff-notes">주의사항</label>
+            <textarea id="handoff-notes" placeholder="실수하기 쉬운 점, 환경 이슈, 메모"></textarea>
+          </div>
+          <div class="actions">
+            <button id="save-handoff">인계 저장</button>
+          </div>
+          <div id="handoff-meta" class="meta">저장 안 됨</div>
         </section>
       </section>
 
-      <section class="card chat-card">
-        <div class="chat-header">
-          <div>
-            <h2 id="chat-title">대화 선택 필요</h2>
-            <div id="chat-subtitle" class="meta">프로젝트를 고르고 대화를 만들면 된다.</div>
+      <section class="card column workbench">
+        <div class="section-head">
+          <h2>작업 패널</h2>
+          <span class="pill" id="run-mode-pill">대기</span>
+        </div>
+
+        <section class="stack">
+          <div class="status-bar">
+            <div>
+              <strong id="run-status-title">실행 안 함</strong>
+              <div id="run-status-meta" class="meta">프로젝트 선택 후 경로와 인계를 확인해라.</div>
+            </div>
+            <div class="actions">
+              <button id="git-clone" class="secondary">Clone</button>
+              <button id="git-pull" class="secondary">Pull</button>
+              <button id="git-status" class="secondary">Status</button>
+            </div>
           </div>
-          <span class="pill" id="project-pill">없음</span>
-        </div>
-        <div class="composer-note">
-          <span>`git clone / pull / status` 자동 감지</span>
-          <span>무거운 파일 읽기는 Codex 우선</span>
-          <span>Claude는 검토와 반박 담당</span>
-        </div>
-        <div class="messages" id="messages">
-          <div class="empty">왼쪽에서 프로젝트를 고르고 대화를 만들면 된다.</div>
-        </div>
-        <div class="row">
-          <label for="prompt-input">지시</label>
-          <textarea id="prompt-input" placeholder="README 읽고 핵심 구조 5줄로 요약&#10;repo 가져오고 git status 보여줘"></textarea>
-        </div>
-        <div class="actions">
-          <button id="send-prompt">실행</button>
-          <button id="clear-prompt" class="secondary">비우기</button>
-        </div>
+
+          <div class="row">
+            <label for="prompt-input">로컬 실행 지시</label>
+            <textarea id="prompt-input" placeholder="README 읽고 현재 구조 요약&#10;다음에 수정할 파일 후보 정리"></textarea>
+          </div>
+          <div class="actions">
+            <button id="run-codex">Codex만 실행</button>
+            <button id="run-both" class="warn">Codex 후 Claude</button>
+            <button id="run-claude" class="secondary">Claude만 실행</button>
+          </div>
+          <div class="meta">실행 중에는 새 작업을 막는다. 결과 확인 후 필요한 내용만 인계에 수동 저장하면 된다.</div>
+        </section>
+
+        <section class="stack">
+          <div class="section-head">
+            <h2>환경 점검</h2>
+            <span class="pill">수동 실행</span>
+          </div>
+          <div class="tool-list" id="tools">
+            <div class="empty">환경 점검 전</div>
+          </div>
+        </section>
+
+        <section class="stack">
+          <div class="section-head">
+            <h2>출력</h2>
+            <span class="pill" id="artifact-pill">산출물 없음</span>
+          </div>
+          <pre id="output">여기에 git 결과 또는 Codex/Claude 실행 결과가 표시된다.</pre>
+        </section>
       </section>
     </section>
   </main>
 
   <script>
-    const basePath = {{ (base_path or '')|tojson }};
-    const apiBase = `${basePath}/api`;
+    const apiBase = "/api";
 
     const state = {
-      device: null,
+      bootstrap: null,
       projects: [],
       activeProjectId: null,
-      conversations: [],
-      activeConversationId: null,
-      messages: [],
-      lastRun: null,
+      detail: null,
+      activeJobId: null,
+      pollTimer: null,
     };
 
     const elements = {
-      projects: document.getElementById("projects"),
-      conversations: document.getElementById("conversations"),
-      messages: document.getElementById("messages"),
-      runOutput: document.getElementById("run-output"),
-      runMeta: document.getElementById("run-meta"),
-      runStrategy: document.getElementById("run-strategy"),
-      workspacePath: document.getElementById("workspace-path"),
-      workspaceMeta: document.getElementById("workspace-meta"),
-      promptInput: document.getElementById("prompt-input"),
-      chatTitle: document.getElementById("chat-title"),
-      chatSubtitle: document.getElementById("chat-subtitle"),
-      projectPill: document.getElementById("project-pill"),
       serverUrl: document.getElementById("server-url"),
       serverMeta: document.getElementById("server-meta"),
       deviceMeta: document.getElementById("device-meta"),
-      runnerMeta: document.getElementById("runner-meta"),
-      sendPrompt: document.getElementById("send-prompt"),
+      jobMeta: document.getElementById("job-meta"),
+      projects: document.getElementById("projects"),
+      projectCount: document.getElementById("project-count"),
+      activeProjectPill: document.getElementById("active-project-pill"),
+      projectTitle: document.getElementById("project-title"),
+      projectRepo: document.getElementById("project-repo"),
+      projectBranch: document.getElementById("project-branch"),
+      workspacePath: document.getElementById("workspace-path"),
+      bindingMeta: document.getElementById("binding-meta"),
+      handoffBrief: document.getElementById("handoff-brief"),
+      handoffStatus: document.getElementById("handoff-status"),
+      handoffNext: document.getElementById("handoff-next"),
+      handoffNotes: document.getElementById("handoff-notes"),
+      handoffMeta: document.getElementById("handoff-meta"),
+      promptInput: document.getElementById("prompt-input"),
+      runModePill: document.getElementById("run-mode-pill"),
+      runStatusTitle: document.getElementById("run-status-title"),
+      runStatusMeta: document.getElementById("run-status-meta"),
+      tools: document.getElementById("tools"),
+      output: document.getElementById("output"),
+      artifactPill: document.getElementById("artifact-pill"),
+      newSlug: document.getElementById("new-slug"),
+      newTitle: document.getElementById("new-title"),
+      newRepo: document.getElementById("new-repo"),
     };
 
     function escapeHtml(value) {
-      return String(value)
+      return String(value ?? "")
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
@@ -514,14 +557,105 @@
       return data;
     }
 
-    async function loadLocalStatus() {
-      const config = await request(`${apiBase}/local/config`);
-      const status = await request(`${apiBase}/local/status`);
-      elements.serverUrl.value = config.server_url || "";
-      elements.serverMeta.textContent = status.server_url
-        ? `${status.server_url} | ${status.server_reachable ? "연결됨" : "연결 안 됨"}`
+    function activeProject() {
+      return state.projects.find((project) => project.id === state.activeProjectId) || null;
+    }
+
+    function setOutput(text, mode = "대기", meta = "", artifact = "") {
+      elements.output.textContent = text || "출력 없음";
+      elements.runModePill.textContent = mode;
+      elements.runStatusMeta.textContent = meta || "추가 정보 없음";
+      elements.artifactPill.textContent = artifact || "산출물 없음";
+    }
+
+    function clearDetail() {
+      state.detail = null;
+      elements.activeProjectPill.textContent = "선택 필요";
+      elements.projectTitle.value = "";
+      elements.projectRepo.value = "";
+      elements.projectBranch.value = "";
+      elements.workspacePath.value = "";
+      elements.bindingMeta.textContent = "선택된 프로젝트 없음";
+      elements.handoffBrief.value = "";
+      elements.handoffStatus.value = "";
+      elements.handoffNext.value = "";
+      elements.handoffNotes.value = "";
+      elements.handoffMeta.textContent = "저장 안 됨";
+    }
+
+    function renderProjects() {
+      elements.projectCount.textContent = `${state.projects.length}개`;
+      if (!state.projects.length) {
+        elements.projects.innerHTML = '<div class="empty">프로젝트 없음</div>';
+        clearDetail();
+        return;
+      }
+
+      elements.projects.innerHTML = state.projects.map((project) => `
+        <article class="item ${project.id === state.activeProjectId ? "active" : ""}" data-project-id="${project.id}">
+          <strong>${escapeHtml(project.title)}</strong>
+          <div class="meta">${escapeHtml(project.slug)}</div>
+          <div class="meta">${escapeHtml(project.repo_url || "git 저장소 없음")}</div>
+        </article>
+      `).join("");
+
+      elements.projects.querySelectorAll("[data-project-id]").forEach((node) => {
+        node.addEventListener("click", () => loadProjectDetail(Number(node.dataset.projectId)));
+      });
+    }
+
+    function fillDetail(detail) {
+      state.detail = detail;
+      elements.activeProjectPill.textContent = detail.project.slug;
+      elements.projectTitle.value = detail.project.title || "";
+      elements.projectRepo.value = detail.project.repo_url || "";
+      elements.projectBranch.value = detail.project.default_branch || "main";
+      elements.workspacePath.value = detail.active_binding?.local_path || "";
+      elements.bindingMeta.textContent = detail.active_binding
+        ? `현재 기기 경로: ${detail.active_binding.local_path}`
+        : "현재 기기 경로 미저장";
+      elements.handoffBrief.value = detail.handoff.project_brief || "";
+      elements.handoffStatus.value = detail.handoff.current_status || "";
+      elements.handoffNext.value = detail.handoff.next_steps || "";
+      elements.handoffNotes.value = detail.handoff.notes || "";
+      elements.handoffMeta.textContent = detail.handoff.updated_at
+        ? `마지막 저장: ${new Date(detail.handoff.updated_at).toLocaleString()} / ${detail.handoff.updated_by_device || "기록 없음"}`
+        : "아직 저장된 인계 없음";
+    }
+
+    function renderBootstrap(bootstrap) {
+      state.bootstrap = bootstrap;
+      elements.serverUrl.value = bootstrap.server_url || "";
+      elements.serverMeta.textContent = bootstrap.server_url
+        ? `${bootstrap.server_url} | ${bootstrap.server_reachable ? "연결됨" : "연결 안 됨"}`
         : "서버 미설정";
-      elements.deviceMeta.textContent = `${status.local_hostname} | ${status.local_platform}`;
+      elements.deviceMeta.textContent = bootstrap.device
+        ? `${bootstrap.device.hostname} | ${bootstrap.device.platform}`
+        : "장치 미등록";
+    }
+
+    async function loadBootstrap() {
+      const bootstrap = await request(`${apiBase}/local/bootstrap`);
+      renderBootstrap(bootstrap);
+      state.projects = bootstrap.projects || [];
+      renderProjects();
+
+      const keep = state.activeProjectId && state.projects.some((project) => project.id === state.activeProjectId)
+        ? state.activeProjectId
+        : state.projects[0]?.id;
+      if (keep) {
+        await loadProjectDetail(keep);
+      } else {
+        clearDetail();
+      }
+    }
+
+    async function loadProjectDetail(projectId) {
+      state.activeProjectId = projectId;
+      renderProjects();
+      const detail = await request(`${apiBase}/local/projects/${projectId}`);
+      fillDetail(detail);
+      await syncActiveJob();
     }
 
     async function saveServerUrl() {
@@ -529,115 +663,120 @@
       if (!serverUrl) {
         throw new Error("서버 주소가 비어 있음");
       }
-      const saved = await request(`${apiBase}/local/config`, {
+      await request(`${apiBase}/local/config`, {
         method: "POST",
         body: JSON.stringify({ server_url: serverUrl }),
       });
-      elements.serverUrl.value = saved.server_url;
-      await loadLocalStatus();
+      await loadBootstrap();
     }
 
-    function activeProject() {
-      return state.projects.find((project) => project.id === state.activeProjectId) || null;
-    }
-
-    function activeConversation() {
-      return state.conversations.find((conversation) => conversation.id === state.activeConversationId) || null;
-    }
-
-    function showRunOutput(value, meta = "", strategy = "대기") {
-      elements.runOutput.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
-      elements.runMeta.textContent = meta || "실행 정보 없음";
-      elements.runStrategy.textContent = strategy;
-    }
-
-    function renderProjects() {
-      if (!state.projects.length) {
-        elements.projects.innerHTML = '<div class="empty">프로젝트 없음.</div>';
-        elements.projectPill.textContent = "없음";
-        return;
-      }
-      elements.projects.innerHTML = state.projects.map((project) => `
-        <article class="item ${project.id === state.activeProjectId ? "active" : ""}" data-project-id="${project.id}">
-          <strong>${escapeHtml(project.title)}</strong>
-          <div class="meta">${escapeHtml(project.slug)}</div>
-          <div class="meta">${escapeHtml(project.repo_url || "저장소 주소 없음")}</div>
-        </article>
-      `).join("");
-      elements.projects.querySelectorAll("[data-project-id]").forEach((node) => {
-        node.addEventListener("click", () => selectProject(Number(node.dataset.projectId)));
+    async function createProject() {
+      const payload = {
+        slug: elements.newSlug.value.trim(),
+        title: elements.newTitle.value.trim(),
+        repo_url: elements.newRepo.value.trim() || null,
+        default_branch: "main",
+      };
+      const project = await request(`${apiBase}/local/projects`, {
+        method: "POST",
+        body: JSON.stringify(payload),
       });
-      const project = activeProject();
-      elements.projectPill.textContent = project ? project.slug : "없음";
+      elements.newSlug.value = "";
+      elements.newTitle.value = "";
+      elements.newRepo.value = "";
+      await loadBootstrap();
+      await loadProjectDetail(project.id);
     }
 
-    function renderConversations() {
-      if (!state.activeProjectId) {
-        elements.conversations.innerHTML = '<div class="empty">프로젝트를 먼저 선택해.</div>';
-        return;
+    async function saveProjectMeta() {
+      const project = activeProject();
+      if (!project) {
+        throw new Error("프로젝트 선택 필요");
       }
-      if (!state.conversations.length) {
-        elements.conversations.innerHTML = '<div class="empty">대화 없음.</div>';
-        return;
-      }
-      elements.conversations.innerHTML = state.conversations.map((conversation) => `
-        <article class="item ${conversation.id === state.activeConversationId ? "active" : ""}" data-conversation-id="${conversation.id}">
-          <strong>${escapeHtml(conversation.title)}</strong>
-          <div class="meta">상태: ${escapeHtml(conversation.status)}</div>
-          <div class="meta">${new Date(conversation.updated_at).toLocaleString()}</div>
-        </article>
-      `).join("");
-      elements.conversations.querySelectorAll("[data-conversation-id]").forEach((node) => {
-        node.addEventListener("click", () => selectConversation(Number(node.dataset.conversationId)));
+      await request(`${apiBase}/local/projects/${project.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          title: elements.projectTitle.value.trim(),
+          repo_url: elements.projectRepo.value.trim() || null,
+          default_branch: elements.projectBranch.value.trim() || "main",
+        }),
       });
+      await loadBootstrap();
+      await loadProjectDetail(project.id);
     }
 
-    function renderMessages() {
+    async function saveBinding() {
       const project = activeProject();
-      const conversation = activeConversation();
-      elements.chatTitle.textContent = conversation ? conversation.title : "대화 선택 필요";
-      elements.chatSubtitle.textContent = project
-        ? `${project.title} | ${elements.workspacePath.value.trim() || "경로 미지정"}`
-        : "프로젝트를 고르고 대화를 만들면 된다.";
-
-      if (!state.messages.length) {
-        elements.messages.innerHTML = '<div class="empty">메시지 없음.</div>';
-        return;
+      if (!project) {
+        throw new Error("프로젝트 선택 필요");
       }
-
-      elements.messages.innerHTML = state.messages.map((message) => {
-        const agent = message.agent || (message.role === "user" ? "user" : "assistant");
-        const agentClass = agent === "codex"
-          ? "agent-codex"
-          : agent === "claude"
-            ? "agent-claude"
-            : agent === "jayai"
-              ? "agent-jayai"
-              : "";
-        const bubbleClass = message.role === "user"
-          ? "user"
-          : agent === "codex"
-            ? "assistant codex"
-            : agent === "claude"
-              ? "assistant claude"
-              : agent === "jayai"
-                ? "assistant jayai"
-                : "assistant";
-        return `
-          <article class="bubble ${bubbleClass}">
-            <div class="bubble-head">
-              <span class="agent-badge ${agentClass}">${escapeHtml(agent)}</span>
-              <span class="meta">${new Date(message.created_at).toLocaleString()}</span>
-            </div>
-            <div>${escapeHtml(message.content)}</div>
-          </article>
-        `;
-      }).join("");
-      elements.messages.scrollTop = elements.messages.scrollHeight;
+      const workspacePath = elements.workspacePath.value.trim();
+      if (!workspacePath) {
+        throw new Error("경로가 비어 있음");
+      }
+      await request(`${apiBase}/local/projects/${project.id}/binding`, {
+        method: "POST",
+        body: JSON.stringify({ workspace_path: workspacePath }),
+      });
+      const scan = await request(`${apiBase}/runner/scan-workspace`, {
+        method: "POST",
+        body: JSON.stringify({ path: workspacePath }),
+      });
+      elements.bindingMeta.textContent = scan.exists
+        ? `저장됨 | git:${scan.is_git_repo ? "yes" : "no"} | 문서:${scan.context_docs.length}`
+        : "저장됐지만 경로가 없음";
+      await loadProjectDetail(project.id);
     }
 
-    async function registerLocalDevice() {
-      state.device = await request(`${apiBase}/devices/local`, { method: "POST", body: "{}" });
+    async function scanCurrentWorkspace() {
+      const workspacePath = elements.workspacePath.value.trim();
+      if (!workspacePath) {
+        throw new Error("경로가 비어 있음");
+      }
+      const scan = await request(`${apiBase}/runner/scan-workspace`, {
+        method: "POST",
+        body: JSON.stringify({ path: workspacePath }),
+      });
+      const docs = scan.context_docs.length ? `문서:\n- ${scan.context_docs.join("\n- ")}` : "문서 없음";
+      setOutput(
+        JSON.stringify(scan, null, 2),
+        "스캔",
+        `${scan.exists ? "경로 존재" : "경로 없음"} | git:${scan.is_git_repo ? "yes" : "no"}`,
+        docs
+      );
+    }
+
+    async function saveHandoff() {
+      const project = activeProject();
+      if (!project) {
+        throw new Error("프로젝트 선택 필요");
+      }
+      const payload = {
+        project_brief: elements.handoffBrief.value.trim(),
+        current_status: elements.handoffStatus.value.trim(),
+        next_steps: elements.handoffNext.value.trim(),
+        notes: elements.handoffNotes.value.trim(),
+        updated_by_device: state.bootstrap?.device?.name || null,
+      };
+      const handoff = await request(`${apiBase}/local/projects/${project.id}/handoff`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      elements.handoffMeta.textContent = `저장 완료: ${new Date(handoff.updated_at).toLocaleString()} / ${handoff.updated_by_device || "기록 없음"}`;
+    }
+
+    async function runGit(action) {
+      const project = activeProject();
+      if (!project) {
+        throw new Error("프로젝트 선택 필요");
+      }
+      const result = await request(`${apiBase}/local/projects/${project.id}/git/${action}`, {
+        method: "POST",
+        body: JSON.stringify({ workspace_path: elements.workspacePath.value.trim() || null }),
+      });
+      const text = [result.summary, result.stdout, result.stderr].filter(Boolean).join("\n\n");
+      setOutput(text, `git ${action}`, result.workspace_path, result.command.join(" "));
+      await loadProjectDetail(project.id);
     }
 
     async function probeRunner() {
@@ -646,254 +785,142 @@
         method: "POST",
         body: JSON.stringify({ workdir }),
       });
-      const toolSummary = result.tools
-        .map((tool) => `${tool.name}:${tool.installed ? "ok" : "missing"}${tool.auth_state ? `/${tool.auth_state}` : ""}`)
-        .join(" | ");
-      elements.runnerMeta.textContent = `${result.hostname} | ${toolSummary}`;
-      showRunOutput(result, "CLI 점검 결과", "점검");
+      elements.tools.innerHTML = result.tools.map((tool) => `
+        <article class="tool-item">
+          <strong>${escapeHtml(tool.name)}</strong>
+          <div class="meta">${tool.installed ? "설치됨" : "없음"}${tool.version ? ` | ${escapeHtml(tool.version)}` : ""}</div>
+          <div class="meta">${escapeHtml(tool.auth_state || tool.detail || "")}</div>
+        </article>
+      `).join("");
+      setOutput(JSON.stringify(result, null, 2), "환경 점검", `${result.hostname} | ${result.platform}`);
     }
 
-    async function scanWorkspace() {
-      const path = elements.workspacePath.value.trim();
-      if (!path) {
-        throw new Error("워크스페이스 경로 필요");
-      }
-      const result = await request(`${apiBase}/runner/scan-workspace`, {
-        method: "POST",
-        body: JSON.stringify({ path }),
+    function setRunBusy(isBusy) {
+      ["run-codex", "run-both", "run-claude", "git-clone", "git-pull", "git-status"].forEach((id) => {
+        document.getElementById(id).disabled = isBusy;
       });
-      elements.workspaceMeta.textContent = result.exists
-        ? `존재함 | git:${result.is_git_repo ? "yes" : "no"} | 문서:${result.context_docs.length}`
-        : "경로 없음";
-      showRunOutput(result, "경로 스캔 결과", "스캔");
     }
 
-    async function loadProjects(preferredProjectId = null) {
-      state.projects = await request(`${apiBase}/projects`);
-      if (!state.projects.length) {
-        state.activeProjectId = null;
-        state.conversations = [];
-        state.activeConversationId = null;
-        state.messages = [];
-        renderProjects();
-        renderConversations();
-        renderMessages();
-        return;
-      }
-      const validTarget = preferredProjectId && state.projects.some((project) => project.id === preferredProjectId)
-        ? preferredProjectId
-        : state.activeProjectId && state.projects.some((project) => project.id === state.activeProjectId)
-          ? state.activeProjectId
-          : state.projects[0].id;
-      state.activeProjectId = validTarget;
-      renderProjects();
-      await selectProject(validTarget);
-    }
-
-    async function loadBindings(projectId) {
-      const bindings = await request(`${apiBase}/projects/${projectId}/bindings`);
-      const ownBinding = state.device
-        ? bindings.find((binding) => binding.device_id === state.device.id)
-        : null;
-      const chosen = ownBinding || bindings[0] || null;
-      elements.workspacePath.value = chosen ? chosen.local_path : "";
-      elements.workspaceMeta.textContent = chosen
-        ? `저장된 경로: ${chosen.local_path}`
-        : "저장된 경로 없음";
-    }
-
-    async function loadConversations(projectId, preferredConversationId = null) {
-      state.conversations = await request(`${apiBase}/projects/${projectId}/conversations`);
-      renderConversations();
-      if (!state.conversations.length) {
-        state.activeConversationId = null;
-        state.messages = [];
-        renderMessages();
-        return;
-      }
-      const target = preferredConversationId && state.conversations.some((item) => item.id === preferredConversationId)
-        ? preferredConversationId
-        : state.activeConversationId && state.conversations.some((item) => item.id === state.activeConversationId)
-          ? state.activeConversationId
-          : state.conversations[0].id;
-      await selectConversation(target);
-    }
-
-    async function selectProject(projectId) {
-      state.activeProjectId = projectId;
-      state.activeConversationId = null;
-      state.messages = [];
-      renderProjects();
-      renderMessages();
-      await Promise.all([loadBindings(projectId), loadConversations(projectId)]);
-    }
-
-    async function selectConversation(conversationId) {
-      state.activeConversationId = conversationId;
-      state.messages = await request(`${apiBase}/projects/conversations/${conversationId}/messages`);
-      renderConversations();
-      renderMessages();
-    }
-
-    async function createProject() {
-      const payload = {
-        slug: document.getElementById("project-slug").value.trim(),
-        title: document.getElementById("project-title").value.trim(),
-        repo_url: document.getElementById("project-repo").value.trim() || null,
-        default_branch: "main",
-        docs_globs: ["AGENTS.md", "README.md", "README*.md", "CLAUDE.md", "SESSION_STATUS.md", "docs/**/*.md"],
-      };
-      const project = await request(`${apiBase}/projects`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      document.getElementById("project-slug").value = "";
-      document.getElementById("project-title").value = "";
-      document.getElementById("project-repo").value = "";
-      await loadProjects(project.id);
-    }
-
-    async function saveBinding() {
+    async function startExecution(mode) {
       const project = activeProject();
       if (!project) {
         throw new Error("프로젝트 선택 필요");
       }
-      if (!state.device) {
-        throw new Error("장치 등록 필요");
-      }
-      const localPath = elements.workspacePath.value.trim();
-      if (!localPath) {
-        throw new Error("워크스페이스 경로 필요");
-      }
-      await request(`${apiBase}/projects/${project.id}/bindings`, {
-        method: "POST",
-        body: JSON.stringify({
-          project_id: project.id,
-          device_id: state.device.id,
-          local_path: localPath,
-          preferred_branch: project.default_branch,
-        }),
-      });
-      elements.workspaceMeta.textContent = `경로 저장됨: ${localPath}`;
-    }
-
-    async function createConversation(title = null) {
-      const project = activeProject();
-      if (!project) {
-        throw new Error("프로젝트 선택 필요");
-      }
-      const payload = {
-        title: title || `대화 ${new Date().toLocaleString()}`,
-      };
-      const conversation = await request(`${apiBase}/projects/${project.id}/conversations`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      await loadConversations(project.id, conversation.id);
-      return conversation;
-    }
-
-    async function ensureConversationForPrompt(prompt) {
-      const conversation = activeConversation();
-      if (conversation) {
-        return conversation;
-      }
-      const title = prompt.replace(/\s+/g, " ").trim().slice(0, 40) || "대화";
-      return createConversation(title);
-    }
-
-    async function sendPrompt() {
       const prompt = elements.promptInput.value.trim();
       if (!prompt) {
         throw new Error("지시가 비어 있음");
       }
-      const project = activeProject();
-      if (!project) {
-        throw new Error("프로젝트 선택 필요");
-      }
-      const conversation = await ensureConversationForPrompt(prompt);
-      const workspacePath = elements.workspacePath.value.trim() || null;
-
-      elements.sendPrompt.disabled = true;
-      showRunOutput("실행 중...", `${project.title} | ${workspacePath || "경로 미지정"}`, "실행 중");
-      try {
-        const result = await request(`${apiBase}/projects/conversations/${conversation.id}/execute`, {
-          method: "POST",
-          body: JSON.stringify({
-            content: prompt,
-            workspace_path: workspacePath,
-          }),
-        });
-        elements.promptInput.value = "";
-        state.lastRun = result;
-        await loadConversations(project.id, conversation.id);
-        await selectConversation(conversation.id);
-        showRunOutput(
-          result.messages.map((message) => `[${message.agent || message.role}]\n${message.content}`).join("\n\n"),
-          `전략:${result.strategy} | 작업경로:${result.workspace_path} | 산출물:${result.artifact_dir || "없음"}`,
-          result.strategy,
-        );
-      } finally {
-        elements.sendPrompt.disabled = false;
-      }
+      const job = await request(`${apiBase}/local/projects/${project.id}/jobs`, {
+        method: "POST",
+        body: JSON.stringify({
+          prompt,
+          mode,
+          workspace_path: elements.workspacePath.value.trim() || null,
+        }),
+      });
+      state.activeJobId = job.id;
+      elements.runStatusTitle.textContent = job.phase;
+      elements.jobMeta.textContent = `${project.title} | ${job.phase}`;
+      setRunBusy(true);
+      setOutput("실행 시작됨. 완료될 때까지 새 작업을 막는다.", mode, job.phase);
+      startPolling();
     }
 
-    async function refreshAll() {
-      await loadLocalStatus();
-      if (!elements.serverUrl.value.trim()) {
-        state.device = null;
-        state.projects = [];
-        state.conversations = [];
-        state.activeProjectId = null;
-        state.activeConversationId = null;
-        state.messages = [];
-        renderProjects();
-        renderConversations();
-        renderMessages();
+    async function syncActiveJob() {
+      const job = await request(`${apiBase}/local/jobs/active`);
+      if (!job) {
+        state.activeJobId = null;
+        elements.jobMeta.textContent = "없음";
+        setRunBusy(false);
         return;
       }
-      await registerLocalDevice();
-      await loadProjects();
-      renderMessages();
+      state.activeJobId = job.id;
+      elements.jobMeta.textContent = `${job.phase} | ${job.status}`;
+      if (job.status === "running" || job.status === "queued") {
+        setRunBusy(true);
+        startPolling();
+      } else {
+        setRunBusy(false);
+      }
     }
 
-    document.getElementById("create-project").addEventListener("click", () => {
-      createProject().catch((error) => showRunOutput(String(error), "프로젝트 생성 실패", "오류"));
-    });
-    document.getElementById("save-binding").addEventListener("click", () => {
-      saveBinding().then(() => scanWorkspace()).catch((error) => showRunOutput(String(error), "경로 저장 실패", "오류"));
-    });
-    document.getElementById("scan-workspace").addEventListener("click", () => {
-      scanWorkspace().catch((error) => showRunOutput(String(error), "경로 스캔 실패", "오류"));
-    });
-    document.getElementById("new-conversation").addEventListener("click", () => {
-      createConversation().catch((error) => showRunOutput(String(error), "대화 생성 실패", "오류"));
-    });
-    document.getElementById("probe-runner").addEventListener("click", () => {
-      probeRunner().catch((error) => showRunOutput(String(error), "CLI 점검 실패", "오류"));
-    });
+    function stopPolling() {
+      if (state.pollTimer) {
+        clearInterval(state.pollTimer);
+        state.pollTimer = null;
+      }
+    }
+
+    function startPolling() {
+      stopPolling();
+      state.pollTimer = setInterval(async () => {
+        if (!state.activeJobId) {
+          stopPolling();
+          return;
+        }
+        try {
+          const job = await request(`${apiBase}/local/jobs/${state.activeJobId}`);
+          elements.runStatusTitle.textContent = job.phase;
+          elements.jobMeta.textContent = `${job.phase} | ${job.status}`;
+          setOutput(job.output || job.error || "실행 중...", job.mode || "실행", job.phase, job.artifact_dir || "");
+          if (job.status === "completed" || job.status === "failed") {
+            setRunBusy(false);
+            stopPolling();
+          }
+        } catch (error) {
+          setRunBusy(false);
+          stopPolling();
+          setOutput(String(error), "오류", "작업 상태 조회 실패");
+        }
+      }, 2500);
+    }
+
     document.getElementById("save-server").addEventListener("click", () => {
-      saveServerUrl()
-        .then(() => refreshAll())
-        .catch((error) => showRunOutput(String(error), "서버 저장 실패", "오류"));
+      saveServerUrl().catch((error) => setOutput(String(error), "오류", "서버 저장 실패"));
     });
     document.getElementById("refresh-all").addEventListener("click", () => {
-      refreshAll().catch((error) => showRunOutput(String(error), "새로고침 실패", "오류"));
+      loadBootstrap().catch((error) => setOutput(String(error), "오류", "새로고침 실패"));
     });
-    document.getElementById("send-prompt").addEventListener("click", () => {
-      sendPrompt().catch((error) => showRunOutput(String(error), "실행 실패", "오류"));
+    document.getElementById("create-project").addEventListener("click", () => {
+      createProject().catch((error) => setOutput(String(error), "오류", "프로젝트 생성 실패"));
     });
-    document.getElementById("clear-prompt").addEventListener("click", () => {
-      elements.promptInput.value = "";
+    document.getElementById("save-project-meta").addEventListener("click", () => {
+      saveProjectMeta().catch((error) => setOutput(String(error), "오류", "프로젝트 정보 저장 실패"));
     });
-    elements.promptInput.addEventListener("keydown", (event) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
-        event.preventDefault();
-        sendPrompt().catch((error) => showRunOutput(String(error), "실행 실패", "오류"));
-      }
+    document.getElementById("save-binding").addEventListener("click", () => {
+      saveBinding().catch((error) => setOutput(String(error), "오류", "경로 저장 실패"));
+    });
+    document.getElementById("scan-workspace").addEventListener("click", () => {
+      scanCurrentWorkspace().catch((error) => setOutput(String(error), "오류", "폴더 스캔 실패"));
+    });
+    document.getElementById("save-handoff").addEventListener("click", () => {
+      saveHandoff().catch((error) => setOutput(String(error), "오류", "인계 저장 실패"));
+    });
+    document.getElementById("git-clone").addEventListener("click", () => {
+      runGit("clone").catch((error) => setOutput(String(error), "오류", "git clone 실패"));
+    });
+    document.getElementById("git-pull").addEventListener("click", () => {
+      runGit("pull").catch((error) => setOutput(String(error), "오류", "git pull 실패"));
+    });
+    document.getElementById("git-status").addEventListener("click", () => {
+      runGit("status").catch((error) => setOutput(String(error), "오류", "git status 실패"));
+    });
+    document.getElementById("probe-runner").addEventListener("click", () => {
+      probeRunner().catch((error) => setOutput(String(error), "오류", "환경 점검 실패"));
+    });
+    document.getElementById("run-codex").addEventListener("click", () => {
+      startExecution("codex").catch((error) => setOutput(String(error), "오류", "Codex 실행 실패"));
+    });
+    document.getElementById("run-both").addEventListener("click", () => {
+      startExecution("both").catch((error) => setOutput(String(error), "오류", "복합 실행 실패"));
+    });
+    document.getElementById("run-claude").addEventListener("click", () => {
+      startExecution("claude").catch((error) => setOutput(String(error), "오류", "Claude 실행 실패"));
     });
 
-    refreshAll().then(() => probeRunner()).catch((error) => showRunOutput(String(error), "초기화 실패", "오류"));
+    loadBootstrap()
+      .then(() => syncActiveJob())
+      .catch((error) => setOutput(String(error), "오류", "초기화 실패"));
   </script>
 </body>
 </html>

@@ -30,6 +30,7 @@ class Project(TimestampMixin, Base):
     docs_globs: Mapped[list[str]] = mapped_column(JSON, default=list)
 
     bindings: Mapped[list["WorkspaceBinding"]] = relationship(back_populates="project")
+    handoff: Mapped["ProjectHandoff | None"] = relationship(back_populates="project", uselist=False)
     conversations: Mapped[list["Conversation"]] = relationship(back_populates="project")
 
 
@@ -59,6 +60,21 @@ class WorkspaceBinding(TimestampMixin, Base):
 
     project: Mapped[Project] = relationship(back_populates="bindings")
     device: Mapped[Device] = relationship(back_populates="bindings")
+
+
+class ProjectHandoff(TimestampMixin, Base):
+    __tablename__ = "project_handoffs"
+    __table_args__ = (UniqueConstraint("project_id", name="uq_project_handoff_project"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
+    project_brief: Mapped[str] = mapped_column(Text, default="")
+    current_status: Mapped[str] = mapped_column(Text, default="")
+    next_steps: Mapped[str] = mapped_column(Text, default="")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    updated_by_device: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+    project: Mapped[Project] = relationship(back_populates="handoff")
 
 
 class Conversation(TimestampMixin, Base):
@@ -100,4 +116,3 @@ class Run(TimestampMixin, Base):
 
     conversation: Mapped[Conversation] = relationship(back_populates="runs")
     device: Mapped[Device | None] = relationship(back_populates="runs")
-

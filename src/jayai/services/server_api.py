@@ -48,6 +48,12 @@ class ServerClient:
     def get_project(self, project_id: int) -> dict[str, Any]:
         return self._request("GET", f"/api/projects/{project_id}")
 
+    def update_project(self, project_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request("PATCH", f"/api/projects/{project_id}", payload)
+
+    def get_project_detail(self, project_id: int) -> dict[str, Any]:
+        return self._request("GET", f"/api/projects/{project_id}/detail")
+
     def register_device(self, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request("POST", "/api/devices", payload)
 
@@ -57,34 +63,8 @@ class ServerClient:
     def bind_workspace(self, project_id: int, payload: dict[str, Any]) -> dict[str, Any]:
         return self._request("POST", f"/api/projects/{project_id}/bindings", payload)
 
-    def list_conversations(self, project_id: int) -> list[dict[str, Any]]:
-        return self._request("GET", f"/api/projects/{project_id}/conversations")
+    def get_handoff(self, project_id: int) -> dict[str, Any]:
+        return self._request("GET", f"/api/projects/{project_id}/handoff")
 
-    def create_conversation(self, project_id: int, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("POST", f"/api/projects/{project_id}/conversations", payload)
-
-    def get_conversation(self, conversation_id: int) -> dict[str, Any]:
-        return self._request("GET", f"/api/projects/conversations/{conversation_id}")
-
-    def list_messages(self, conversation_id: int) -> list[dict[str, Any]]:
-        return self._request("GET", f"/api/projects/conversations/{conversation_id}/messages")
-
-    def create_message(self, conversation_id: int, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("POST", f"/api/projects/conversations/{conversation_id}/messages", payload)
-
-    def create_messages_bulk(
-        self,
-        conversation_id: int,
-        payload: dict[str, Any],
-    ) -> list[dict[str, Any]]:
-        return self._request(
-            "POST",
-            f"/api/projects/conversations/{conversation_id}/messages/bulk",
-            payload,
-        )
-
-    def create_run(self, conversation_id: int, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("POST", f"/api/projects/conversations/{conversation_id}/runs", payload)
-
-    def update_run(self, run_id: int, payload: dict[str, Any]) -> dict[str, Any]:
-        return self._request("PATCH", f"/api/projects/runs/{run_id}", payload)
+    def save_handoff(self, project_id: int, payload: dict[str, Any]) -> dict[str, Any]:
+        return self._request("PUT", f"/api/projects/{project_id}/handoff", payload)

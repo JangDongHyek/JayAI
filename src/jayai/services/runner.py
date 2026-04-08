@@ -18,10 +18,16 @@ WINDOWS_CLAUDE_CANDIDATES = [
     Path.home() / "AppData" / "Roaming" / "npm" / "claude.cmd",
     Path.home() / "AppData" / "Roaming" / "npm" / "claude",
 ]
+WINDOWS_NPM_CANDIDATES = [
+    Path(r"C:\Program Files\nodejs\npm.cmd"),
+    Path.home() / "AppData" / "Roaming" / "npm" / "npm.cmd",
+]
 
 
 def _find_executable(name: str, candidates: list[Path] | None = None) -> str | None:
     found = shutil.which(name)
+    if not found and name == "npm":
+        found = shutil.which("npm.cmd")
     if found and "WindowsApps" not in found:
         return found
     for candidate in candidates or []:
@@ -83,7 +89,10 @@ def _probe_claude() -> ToolStatus:
 
 
 def _probe_basic_tool(name: str) -> ToolStatus:
-    executable = _find_executable(name)
+    candidates: list[Path] | None = None
+    if name == "npm":
+        candidates = WINDOWS_NPM_CANDIDATES
+    executable = _find_executable(name, candidates)
     if not executable:
         return ToolStatus(name=name, installed=False, detail="not found")
     version_arg = "--version"
@@ -106,6 +115,7 @@ def probe_local_environment(workdir: str | None = None) -> RunnerProbeResponse:
         _probe_claude(),
         _probe_basic_tool("git"),
         _probe_basic_tool("node"),
+        _probe_basic_tool("npm"),
         _probe_basic_tool("python"),
     ]
     return RunnerProbeResponse(
@@ -133,7 +143,7 @@ def scan_workspace(path_value: str) -> WorkspaceScanResponse:
             is_git_repo = git_code == 0 and git_out == "true"
         except OSError:
             is_git_repo = False
-        for pattern in ("AGENTS.md", "README.md", "CLAUDE.md", "docs/**/*.md"):
+        for pattern in ("AGENTS.md", "README.md", "README*.md", "CLAUDE.md", "SESSION_STATUS.md", "docs/**/*.md"):
             for matched in path.glob(pattern):
                 if matched.is_file():
                     context_docs.append(str(matched.relative_to(path)))

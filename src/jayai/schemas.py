@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -25,6 +26,13 @@ class ProjectCreate(BaseModel):
     repo_url: str | None = None
     default_branch: str = "main"
     docs_globs: list[str] = Field(default_factory=lambda: list(DEFAULT_DOCS_GLOBS))
+
+
+class ProjectUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    repo_url: str | None = None
+    default_branch: str | None = Field(default=None, min_length=1, max_length=120)
+    docs_globs: list[str] | None = None
 
 
 class ProjectRead(ORMModel):
@@ -73,78 +81,30 @@ class WorkspaceBindingRead(ORMModel):
     updated_at: datetime
 
 
-class ConversationCreate(BaseModel):
-    title: str = Field(min_length=1, max_length=200)
+class ProjectHandoffUpsert(BaseModel):
+    project_brief: str = ""
+    current_status: str = ""
+    next_steps: str = ""
+    notes: str = ""
+    updated_by_device: str | None = None
 
 
-class ConversationRead(ORMModel):
-    id: int
+class ProjectHandoffRead(ORMModel):
+    id: int | None = None
     project_id: int
-    title: str
-    status: str
-    created_at: datetime
-    updated_at: datetime
+    project_brief: str = ""
+    current_status: str = ""
+    next_steps: str = ""
+    notes: str = ""
+    updated_by_device: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
-class MessageCreate(BaseModel):
-    role: str
-    agent: str | None = None
-    content: str
-    model_hint: str | None = None
-
-
-class MessageRead(ORMModel):
-    id: int
-    conversation_id: int
-    role: str
-    agent: str | None
-    content: str
-    model_hint: str | None
-    created_at: datetime
-    updated_at: datetime
-
-
-class MessageBatchCreate(BaseModel):
-    messages: list[MessageCreate] = Field(min_length=1)
-
-
-class RunRead(ORMModel):
-    id: int
-    conversation_id: int
-    device_id: int | None
-    strategy: str
-    status: str
-    prompt_excerpt: str | None
-    result_summary: str | None
-    created_at: datetime
-    updated_at: datetime
-
-
-class RunCreate(BaseModel):
-    device_id: int | None = None
-    strategy: str
-    status: str = "running"
-    prompt_excerpt: str | None = None
-    result_summary: str | None = None
-
-
-class RunUpdate(BaseModel):
-    strategy: str | None = None
-    status: str | None = None
-    result_summary: str | None = None
-
-
-class ConversationExecuteRequest(BaseModel):
-    content: str = Field(min_length=1)
-    workspace_path: str | None = None
-
-
-class ConversationExecuteResponse(BaseModel):
-    run: RunRead
-    messages: list[MessageRead]
-    workspace_path: str
-    artifact_dir: str | None = None
-    strategy: str
+class ProjectDetailRead(BaseModel):
+    project: ProjectRead
+    bindings: list[WorkspaceBindingRead]
+    handoff: ProjectHandoffRead
 
 
 class LocalConfigRead(BaseModel):
@@ -163,10 +123,6 @@ class LocalStatusResponse(BaseModel):
     local_platform: str
 
 
-class RunnerProbeRequest(BaseModel):
-    workdir: str | None = None
-
-
 class ToolStatus(BaseModel):
     name: str
     installed: bool
@@ -174,6 +130,10 @@ class ToolStatus(BaseModel):
     version: str | None = None
     auth_state: str | None = None
     detail: str | None = None
+
+
+class RunnerProbeRequest(BaseModel):
+    workdir: str | None = None
 
 
 class RunnerProbeResponse(BaseModel):
@@ -193,3 +153,53 @@ class WorkspaceScanResponse(BaseModel):
     is_git_repo: bool
     top_entries: list[str]
     context_docs: list[str]
+
+
+class LocalBootstrapResponse(BaseModel):
+    server_url: str
+    server_reachable: bool
+    device: DeviceRead | None = None
+    projects: list[ProjectRead] = Field(default_factory=list)
+
+
+class LocalProjectDetailRead(BaseModel):
+    project: ProjectRead
+    bindings: list[WorkspaceBindingRead]
+    active_binding: WorkspaceBindingRead | None = None
+    handoff: ProjectHandoffRead
+
+
+class GitActionRequest(BaseModel):
+    workspace_path: str | None = None
+
+
+class GitActionRead(BaseModel):
+    action: str
+    success: bool
+    summary: str
+    stdout: str
+    stderr: str
+    command: list[str]
+    workspace_path: str
+
+
+class ExecutionStartRequest(BaseModel):
+    prompt: str = Field(min_length=1)
+    mode: Literal["codex", "claude", "both"] = "both"
+    workspace_path: str | None = None
+
+
+class LocalJobRead(BaseModel):
+    id: str
+    project_id: int
+    kind: str
+    mode: str | None = None
+    status: Literal["queued", "running", "completed", "failed"]
+    phase: str
+    prompt: str | None = None
+    output: str = ""
+    error: str | None = None
+    workspace_path: str | None = None
+    artifact_dir: str | None = None
+    started_at: datetime
+    finished_at: datetime | None = None

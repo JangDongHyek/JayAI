@@ -5,19 +5,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Conversation, Message, Project, Run, WorkspaceBinding
-from ..models import utc_now
+from ..models import Project, ProjectHandoff, WorkspaceBinding
 from ..schemas import (
-    ConversationCreate,
-    ConversationRead,
-    MessageBatchCreate,
-    MessageCreate,
-    MessageRead,
     ProjectCreate,
+    ProjectDetailRead,
+    ProjectHandoffRead,
+    ProjectHandoffUpsert,
     ProjectRead,
-    RunCreate,
-    RunRead,
-    RunUpdate,
+    ProjectUpdate,
     WorkspaceBindingCreate,
     WorkspaceBindingRead,
 )
@@ -26,9 +21,20 @@ from ..schemas import (
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 
+def _get_project_or_404(project_id: int, db: Session) -> Project:
+    project = db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="project not found")
+    return project
+
+
+def _default_handoff(project_id: int) -> ProjectHandoffRead:
+    return ProjectHandoffRead(project_id=project_id)
+
+
 @router.get("", response_model=list[ProjectRead])
 def list_projects(db: Session = Depends(get_db)) -> list[Project]:
-    return list(db.scalars(select(Project).order_by(Project.created_at.desc())))
+    return list(db.scalars(select(Project).order_by(Project.updated_at.desc())))
 
 
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
@@ -45,14 +51,44 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)) -> Pro
 
 @router.get("/{project_id}", response_model=ProjectRead)
 def get_project(project_id: int, db: Session = Depends(get_db)) -> Project:
-    project = db.get(Project, project_id)
-    if not project:
-        raise HTTPException(status_code=404, detail="project not found")
+    return _get_project_or_404(project_id, db)
+
+
+@router.patch("/{project_id}", response_model=ProjectRead)
+def update_project(
+    project_id: int,
+    payload: ProjectUpdate,
+    db: Session = Depends(get_db),
+) -> Project:
+    project = _get_project_or_404(project_id, db)
+    for key, value in payload.model_dump(exclude_unset=True).items():
+        setattr(project, key, value)
+    db.commit()
+    db.refresh(project)
     return project
+
+
+@router.get("/{project_id}/detail", response_model=ProjectDetailRead)
+def get_project_detail(project_id: int, db: Session = Depends(get_db)) -> ProjectDetailRead:
+    project = _get_project_or_404(project_id, db)
+    bindings = list(
+        db.scalars(
+            select(WorkspaceBinding)
+            .where(WorkspaceBinding.project_id == project_id)
+            .order_by(WorkspaceBinding.updated_at.desc())
+        )
+    )
+    handoff = db.scalar(select(ProjectHandoff).where(ProjectHandoff.project_id == project_id))
+    return ProjectDetailRead(
+        project=ProjectRead.model_validate(project),
+        bindings=[WorkspaceBindingRead.model_validate(item) for item in bindings],
+        handoff=ProjectHandoffRead.model_validate(handoff) if handoff else _default_handoff(project_id),
+    )
 
 
 @router.get("/{project_id}/bindings", response_model=list[WorkspaceBindingRead])
 def list_bindings(project_id: int, db: Session = Depends(get_db)) -> list[WorkspaceBinding]:
+    _get_project_or_404(project_id, db)
     return list(
         db.scalars(
             select(WorkspaceBinding)
@@ -68,6 +104,7 @@ def bind_workspace(
     payload: WorkspaceBindingCreate,
     db: Session = Depends(get_db),
 ) -> WorkspaceBinding:
+    _get_project_or_404(project_id, db)
     if payload.project_id != project_id:
         raise HTTPException(status_code=400, detail="project_id mismatch")
     binding = db.scalar(
@@ -87,146 +124,26 @@ def bind_workspace(
     return binding
 
 
-@router.get("/{project_id}/conversations", response_model=list[ConversationRead])
-def list_conversations(project_id: int, db: Session = Depends(get_db)) -> list[Conversation]:
-    return list(
-        db.scalars(
-            select(Conversation)
-            .where(Conversation.project_id == project_id)
-            .order_by(Conversation.updated_at.desc())
-        )
-    )
+@router.get("/{project_id}/handoff", response_model=ProjectHandoffRead)
+def get_handoff(project_id: int, db: Session = Depends(get_db)) -> ProjectHandoffRead:
+    _get_project_or_404(project_id, db)
+    handoff = db.scalar(select(ProjectHandoff).where(ProjectHandoff.project_id == project_id))
+    return ProjectHandoffRead.model_validate(handoff) if handoff else _default_handoff(project_id)
 
 
-@router.post(
-    "/{project_id}/conversations",
-    response_model=ConversationRead,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_conversation(
+@router.put("/{project_id}/handoff", response_model=ProjectHandoffRead)
+def save_handoff(
     project_id: int,
-    payload: ConversationCreate,
+    payload: ProjectHandoffUpsert,
     db: Session = Depends(get_db),
-) -> Conversation:
-    if not db.get(Project, project_id):
-        raise HTTPException(status_code=404, detail="project not found")
-    conversation = Conversation(project_id=project_id, title=payload.title)
-    db.add(conversation)
+) -> ProjectHandoff:
+    _get_project_or_404(project_id, db)
+    handoff = db.scalar(select(ProjectHandoff).where(ProjectHandoff.project_id == project_id))
+    if not handoff:
+        handoff = ProjectHandoff(project_id=project_id)
+        db.add(handoff)
+    for key, value in payload.model_dump().items():
+        setattr(handoff, key, value)
     db.commit()
-    db.refresh(conversation)
-    return conversation
-
-
-@router.get("/conversations/{conversation_id}", response_model=ConversationRead)
-def get_conversation(conversation_id: int, db: Session = Depends(get_db)) -> Conversation:
-    conversation = db.get(Conversation, conversation_id)
-    if not conversation:
-        raise HTTPException(status_code=404, detail="conversation not found")
-    return conversation
-
-
-@router.get("/conversations/{conversation_id}/messages", response_model=list[MessageRead])
-def list_messages(conversation_id: int, db: Session = Depends(get_db)) -> list[Message]:
-    return list(
-        db.scalars(
-            select(Message)
-            .where(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.asc())
-        )
-    )
-
-
-@router.post(
-    "/conversations/{conversation_id}/messages",
-    response_model=MessageRead,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_message(
-    conversation_id: int,
-    payload: MessageCreate,
-    db: Session = Depends(get_db),
-) -> Message:
-    conversation = db.get(Conversation, conversation_id)
-    if not conversation:
-        raise HTTPException(status_code=404, detail="conversation not found")
-    message = Message(conversation_id=conversation_id, **payload.model_dump())
-    conversation.updated_at = utc_now()
-    db.add(message)
-    db.commit()
-    db.refresh(message)
-    return message
-
-
-@router.post(
-    "/conversations/{conversation_id}/messages/bulk",
-    response_model=list[MessageRead],
-    status_code=status.HTTP_201_CREATED,
-)
-def create_messages_bulk(
-    conversation_id: int,
-    payload: MessageBatchCreate,
-    db: Session = Depends(get_db),
-) -> list[Message]:
-    conversation = db.get(Conversation, conversation_id)
-    if not conversation:
-        raise HTTPException(status_code=404, detail="conversation not found")
-    messages = [Message(conversation_id=conversation_id, **item.model_dump()) for item in payload.messages]
-    for message in messages:
-        db.add(message)
-    conversation.updated_at = utc_now()
-    db.commit()
-    for message in messages:
-        db.refresh(message)
-    return messages
-
-
-@router.get("/conversations/{conversation_id}/runs", response_model=list[RunRead])
-def list_runs(conversation_id: int, db: Session = Depends(get_db)) -> list[Run]:
-    return list(
-        db.scalars(
-            select(Run)
-            .where(Run.conversation_id == conversation_id)
-            .order_by(Run.created_at.desc())
-        )
-    )
-
-
-@router.post(
-    "/conversations/{conversation_id}/runs",
-    response_model=RunRead,
-    status_code=status.HTTP_201_CREATED,
-)
-def create_run(
-    conversation_id: int,
-    payload: RunCreate,
-    db: Session = Depends(get_db),
-) -> Run:
-    conversation = db.get(Conversation, conversation_id)
-    if not conversation:
-        raise HTTPException(status_code=404, detail="conversation not found")
-    run = Run(conversation_id=conversation_id, **payload.model_dump())
-    conversation.updated_at = utc_now()
-    db.add(run)
-    db.commit()
-    db.refresh(run)
-    return run
-
-
-@router.patch("/runs/{run_id}", response_model=RunRead)
-def update_run(
-    run_id: int,
-    payload: RunUpdate,
-    db: Session = Depends(get_db),
-) -> Run:
-    run = db.get(Run, run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="run not found")
-    updates = payload.model_dump(exclude_unset=True)
-    for key, value in updates.items():
-        setattr(run, key, value)
-    conversation = db.get(Conversation, run.conversation_id)
-    if conversation:
-        conversation.updated_at = utc_now()
-    db.commit()
-    db.refresh(run)
-    return run
+    db.refresh(handoff)
+    return handoff

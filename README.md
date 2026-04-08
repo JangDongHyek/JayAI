@@ -1,85 +1,69 @@
 # JayAI
 
-JayAI는 두 덩어리로 나뉜다.
+JayAI는 `단일 사용자 멀티디바이스 프로젝트 이어쓰기` 용도다.
 
-- 중앙 서버
-  프로젝트, 장치, 워크스페이스 바인딩, 대화, 메시지, 실행 기록 저장만 담당
-- 로컬 앱
-  브라우저 UI를 열고, 로컬 파일을 읽고, `Codex CLI`와 `Claude Code CLI`를 실행한 뒤 결과를 중앙 서버에 동기화
+핵심 원칙:
 
-의도한 흐름도 이 구조다.
-
-1. 각 PC에 CLI 설치 및 로그인
-2. 프로젝트/세션 데이터는 중앙 서버에 저장
-3. 각 PC에서 로컬 폴더만 다시 바인딩해서 이어서 작업
-
-## 현재 상태 빠른 확인
-
-- 중앙 API: `http://43.203.252.40/jayai-api`
-- 헬스체크: `http://43.203.252.40/jayai-api/api/health`
-- 현재 수동 등록 프로젝트:
-  - `jayai`
-  - `ai-macro`
-- 상세 인수인계 문서:
-  - `SESSION_STATUS.md`
+- 중앙 서버는 `프로젝트 / 기기별 경로 / 현재 인계`만 저장
+- 실제 작업은 항상 로컬 PC에서 실행
+- 대화 기록을 서버에 계속 쌓지 않음
+- 집, 회사, 노트북에서 같은 프로젝트를 불러와도 인계만 읽고 새 로컬 작업을 시작
 
 ## 구조
 
 ### 중앙 서버
 
-- 로컬 파일 접근 안 함
-- `Codex` / `Claude` 실행 안 함
-- 데이터/API 전용
+저장하는 것:
 
-핵심 파일:
+- 프로젝트 이름
+- 슬러그
+- git 저장소 주소
+- 기본 브랜치
+- 기기별 로컬 폴더 경로
+- 현재 인계
+  - 프로젝트 설명
+  - 현재 상태
+  - 다음 작업
+  - 주의사항
 
-- `src/jayai/main.py`
-- `src/jayai/routers/projects.py`
-- `src/jayai/routers/devices.py`
-- `src/jayai/templates/server.html`
+저장하지 않는 것:
+
+- 대화 턴 로그
+- 지속 세션 문맥
+- 서버에서 실행되는 Codex/Claude 작업
 
 ### 로컬 앱
 
-- 로컬 브라우저 UI
-- 로컬 워크스페이스 스캔
-- 로컬 git 작업
-- 로컬 `Codex` / `Claude` 실행
-- 중앙 서버로 실행 결과 동기화
+하는 일:
 
-핵심 파일:
+- 중앙 서버에서 프로젝트 목록 읽기
+- 현재 기기 경로 저장
+- `git clone / pull / status`
+- 로컬 폴더 스캔
+- 로컬 `Codex CLI`, `Claude Code CLI` 실행
+- 실행 상태 표시
+- 필요할 때만 인계 수동 저장
 
-- `src/jayai/local_main.py`
-- `src/jayai/routers/local.py`
-- `src/jayai/services/orchestrator.py`
-- `src/jayai/services/server_api.py`
-- `src/jayai/services/local_config.py`
-- `src/jayai/templates/index.html`
-- `start-jayai-local.bat`
+## 실행 방식
 
-## 로컬 실행
+### 1. 데스크톱 앱 셸
 
 권장:
 
-- `start-jayai-local.bat` 더블클릭
+```bat
+start-jayai-desktop.bat
+```
 
-수동:
+첫 실행 시 `desktop/node_modules`가 없으면 Electron 의존성부터 설치한다.
+
+### 2. 로컬 웹 UI만 실행
 
 ```powershell
 cd C:\Users\fove1\OneDrive\문서\codex\life\jayai
 .\.venv\Scripts\python.exe -m jayai.cli local-ui --open-browser
 ```
 
-처음 한 번만 서버 주소를 강제로 넣고 띄우려면:
-
-```powershell
-.\.venv\Scripts\python.exe -m jayai.cli local-ui --server-url http://43.203.252.40/jayai-api --open-browser
-```
-
-저장 위치:
-
-- `data/local-config.json`
-
-## 중앙 서버 실행
+### 3. 중앙 서버 실행
 
 ```powershell
 cd C:\Users\fove1\OneDrive\문서\codex\life\jayai
@@ -95,23 +79,16 @@ $env:JAYAI_BASE_PATH="/jayai-api"
 
 ## 기본 작업 흐름
 
-1. 로컬 앱 열기
-2. 중앙 서버 주소 확인
-3. 로컬 CLI 상태 점검
-4. 프로젝트 선택
-5. 로컬 폴더 경로 바인딩
-6. 기존 대화 열기 또는 새 대화 생성
-7. 프롬프트 실행
+1. 프로젝트 선택
+2. 현재 기기 로컬 경로 확인 또는 저장
+3. 필요하면 `clone / pull / status`
+4. 현재 인계 확인
+5. 로컬에서 Codex 또는 Claude 실행
+6. 필요한 내용만 인계에 수동 저장
 
-예시:
+## 기본 문서 수집
 
-- `README 읽고 핵심 구조 5줄로 요약`
-- `git status 보여줘`
-- `repo 가져오고 최신으로 pull`
-
-## 프로젝트 문서 수집
-
-기본으로 읽는 파일:
+Codex/Claude 실행 시 기본으로 읽는 문서:
 
 - `AGENTS.md`
 - `README.md`
@@ -127,31 +104,18 @@ $env:JAYAI_BASE_PATH="/jayai-api"
 - `.orchestrator.json`
 - `orchestrator.json`
 
-기본 동작:
-
-- 무거운 문맥은 `Codex` 우선
-- `Claude`는 검토와 반박 담당
-
-## 데이터 경로
-
-중앙 서버 기본 DB:
-
-- `data/jayai.db`
+## 로컬 산출물
 
 로컬 실행 산출물:
 
-- `data/runs/<timestamp>/`
+- `data/runs/<timestamp>/codex.txt`
+- `data/runs/<timestamp>/claude.txt`
+- `data/runs/<timestamp>/summary.txt`
+- `data/runs/<timestamp>/meta.json`
 
-포함 파일:
+## 현재 한계
 
-- `codex.txt`
-- `claude.txt`
-- `summary.txt`
-- `meta.json`
-
-## 한계
-
-- 아직 패키징된 데스크톱 앱 아님
-- 토큰 스트리밍 뷰 없음
-- 백그라운드 러너 서비스 없음
-- 자연어 `commit / push / PR` 없음
+- 실행 진행률은 단계 단위만 표시
+- 취소 버튼 없음
+- Electron 패키징 전, 실행은 스크립트 기반
+- 서버 인증 아직 없음
