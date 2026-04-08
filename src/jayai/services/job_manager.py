@@ -4,7 +4,6 @@ import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Literal
 
 from ..models import Project
@@ -69,7 +68,7 @@ class LocalJobManager:
             if self._active_job_id:
                 active = self._jobs[self._active_job_id]
                 if active.status in {"queued", "running"}:
-                    raise RuntimeError("현재 실행 중인 작업이 끝나지 않았음")
+                    raise RuntimeError("an execution is already running")
 
             job = JobState(
                 id=uuid.uuid4().hex,
@@ -77,7 +76,7 @@ class LocalJobManager:
                 kind="execution",
                 mode=mode,
                 status="queued",
-                phase="대기 중",
+                phase="queued",
                 prompt=prompt,
                 workspace_path=workspace_path,
             )
@@ -121,7 +120,7 @@ class LocalJobManager:
             self._update(
                 job_id,
                 status="completed",
-                phase="완료",
+                phase="completed",
                 output=result.summary,
                 artifact_dir=result.artifact_dir,
                 finished_at=utc_now(),
@@ -130,7 +129,7 @@ class LocalJobManager:
             self._update(
                 job_id,
                 status="failed",
-                phase="실패",
+                phase="failed",
                 error=str(exc),
                 output=str(exc),
                 finished_at=utc_now(),
@@ -142,9 +141,9 @@ class LocalJobManager:
 
     def _phase_for_mode(self, mode: Literal["codex", "claude", "both"]) -> str:
         return {
-            "codex": "Codex 실행 중",
-            "claude": "Claude 실행 중",
-            "both": "Codex 실행 후 Claude 검토 중",
+            "codex": "running Codex",
+            "claude": "running Claude",
+            "both": "running Codex then Claude review",
         }[mode]
 
     def _update(

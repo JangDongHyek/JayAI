@@ -19,14 +19,21 @@ def _failure(action: str, workspace_path: Path, stderr: str, command: list[str])
     return GitActionResult(
         action=action,
         success=False,
-        summary=f"{action} 실패: {workspace_path}",
+        summary=f"{action} failed: {workspace_path}",
         stdout="",
         stderr=stderr,
         command=command,
     )
 
 
+def _run_git(command: list[str], cwd: Path | None = None) -> tuple[int, str, str]:
+    completed = subprocess.run(command, cwd=cwd, capture_output=True, text=True)
+    return completed.returncode, (completed.stdout or "").strip(), (completed.stderr or "").strip()
+
+
 def is_git_repo(path: Path) -> bool:
+    if not path.exists() or not path.is_dir():
+        return False
     completed = subprocess.run(
         ["git", "rev-parse", "--is-inside-work-tree"],
         cwd=path,
@@ -34,11 +41,6 @@ def is_git_repo(path: Path) -> bool:
         text=True,
     )
     return completed.returncode == 0 and (completed.stdout or "").strip() == "true"
-
-
-def _run_git(command: list[str], cwd: Path | None = None) -> tuple[int, str, str]:
-    completed = subprocess.run(command, cwd=cwd, capture_output=True, text=True)
-    return completed.returncode, (completed.stdout or "").strip(), (completed.stderr or "").strip()
 
 
 def current_branch(workspace_path: Path, fallback: str = "main") -> str:
@@ -62,7 +64,7 @@ def save_and_push_project(workspace_path: Path, commit_message: str) -> GitActio
         return GitActionResult(
             action="save",
             success=False,
-            summary=f"저장 실패: {workspace_path}",
+            summary=f"save failed: {workspace_path}",
             stdout=add_stdout,
             stderr=add_stderr,
             command=add_command,
@@ -71,44 +73,41 @@ def save_and_push_project(workspace_path: Path, commit_message: str) -> GitActio
 
     diff_code, _, _ = _run_git(["git", "diff", "--cached", "--quiet"], cwd=workspace_path)
     commit_output_parts: list[str] = []
-    commands = [add_command]
 
     if diff_code == 1:
         commit_command = ["git", "commit", "-m", commit_message]
         commit_code, commit_stdout, commit_stderr = _run_git(commit_command, cwd=workspace_path)
-        commands.append(commit_command)
-        commit_output_parts.extend(
-            part for part in [commit_stdout, commit_stderr] if part
-        )
+        commit_output_parts.extend(part for part in [commit_stdout, commit_stderr] if part)
         if commit_code != 0:
             return GitActionResult(
                 action="save",
                 success=False,
-                summary=f"commit 실패: {workspace_path}",
+                summary=f"commit failed: {workspace_path}",
                 stdout="\n\n".join(commit_output_parts),
                 stderr=commit_stderr,
                 command=commit_command,
             )
         steps.append("[git commit]")
     else:
-        steps.append("[commit 생략: 변경사항 없음]")
+        steps.append("[commit skipped: no staged changes]")
 
     branch = current_branch(workspace_path)
     push_command = ["git", "push", "origin", branch]
     push_code, push_stdout, push_stderr = _run_git(push_command, cwd=workspace_path)
-    commands.append(push_command)
     output = "\n\n".join(
-        part for part in [
+        part
+        for part in [
             "\n".join(steps),
             *commit_output_parts,
             push_stdout,
             push_stderr,
-        ] if part
+        ]
+        if part
     )
     return GitActionResult(
         action="save",
         success=push_code == 0,
-        summary=f"저장 {'성공' if push_code == 0 else '실패'}: {workspace_path}",
+        summary=f"save {'succeeded' if push_code == 0 else 'failed'}: {workspace_path}",
         stdout=output,
         stderr="" if push_code == 0 else push_stderr,
         command=push_command,
@@ -123,7 +122,7 @@ def clone_project(repo_url: str, workspace_path: Path, default_branch: str) -> G
             return GitActionResult(
                 action="clone",
                 success=False,
-                summary=f"git clone 중단. 대상 경로가 비어 있지 않음: {workspace_path}",
+                summary=f"git clone stopped because target is not empty: {workspace_path}",
                 stdout="",
                 stderr="target directory is not empty",
                 command=["git", "clone", repo_url, str(workspace_path)],
@@ -132,11 +131,10 @@ def clone_project(repo_url: str, workspace_path: Path, default_branch: str) -> G
     workspace_path.parent.mkdir(parents=True, exist_ok=True)
     command = ["git", "clone", "--branch", default_branch, repo_url, str(workspace_path)]
     code, stdout, stderr = _run_git(command)
-    summary = f"git clone {'성공' if code == 0 else '실패'}: {workspace_path}"
     return GitActionResult(
         action="clone",
         success=code == 0,
-        summary=summary,
+        summary=f"git clone {'succeeded' if code == 0 else 'failed'}: {workspace_path}",
         stdout=stdout,
         stderr=stderr,
         command=command,
@@ -148,7 +146,7 @@ def pull_project(workspace_path: Path, default_branch: str, fallback_action: str
         return GitActionResult(
             action=fallback_action,
             success=False,
-            summary=f"git pull 불가. 경로 없음: {workspace_path}",
+            summary=f"git pull unavailable because path does not exist: {workspace_path}",
             stdout="",
             stderr="workspace path does not exist",
             command=["git", "pull", "--ff-only", "origin", default_branch],
@@ -157,7 +155,7 @@ def pull_project(workspace_path: Path, default_branch: str, fallback_action: str
         return GitActionResult(
             action=fallback_action,
             success=False,
-            summary=f"git pull 불가. git 저장소 아님: {workspace_path}",
+            summary=f"git pull unavailable because path is not a repo: {workspace_path}",
             stdout="",
             stderr="not a git repository",
             command=["git", "pull", "--ff-only", "origin", default_branch],
@@ -165,11 +163,10 @@ def pull_project(workspace_path: Path, default_branch: str, fallback_action: str
 
     command = ["git", "pull", "--ff-only", "origin", default_branch]
     code, stdout, stderr = _run_git(command, cwd=workspace_path)
-    summary = f"git pull {'성공' if code == 0 else '실패'}: {workspace_path}"
     return GitActionResult(
         action=fallback_action,
         success=code == 0,
-        summary=summary,
+        summary=f"git pull {'succeeded' if code == 0 else 'failed'}: {workspace_path}",
         stdout=stdout,
         stderr=stderr,
         command=command,
@@ -181,7 +178,7 @@ def status_project(workspace_path: Path) -> GitActionResult:
         return GitActionResult(
             action="status",
             success=False,
-            summary=f"git status 불가. 경로 없음: {workspace_path}",
+            summary=f"git status unavailable because path does not exist: {workspace_path}",
             stdout="",
             stderr="workspace path does not exist",
             command=["git", "status", "--short", "--branch"],
@@ -190,7 +187,7 @@ def status_project(workspace_path: Path) -> GitActionResult:
         return GitActionResult(
             action="status",
             success=False,
-            summary=f"git status 불가. git 저장소 아님: {workspace_path}",
+            summary=f"git status unavailable because path is not a repo: {workspace_path}",
             stdout="",
             stderr="not a git repository",
             command=["git", "status", "--short", "--branch"],
@@ -198,11 +195,10 @@ def status_project(workspace_path: Path) -> GitActionResult:
 
     command = ["git", "status", "--short", "--branch"]
     code, stdout, stderr = _run_git(command, cwd=workspace_path)
-    summary = f"git status {'성공' if code == 0 else '실패'}: {workspace_path}"
     return GitActionResult(
         action="status",
         success=code == 0,
-        summary=summary,
+        summary=f"git status {'succeeded' if code == 0 else 'failed'}: {workspace_path}",
         stdout=stdout,
         stderr=stderr,
         command=command,

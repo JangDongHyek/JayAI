@@ -109,10 +109,11 @@ class ProjectDetailRead(BaseModel):
 
 class LocalConfigRead(BaseModel):
     server_url: str
+    device_name: str
 
 
 class LocalConfigWrite(BaseModel):
-    server_url: str = Field(min_length=1)
+    device_name: str = Field(min_length=1, max_length=120)
 
 
 class LocalStatusResponse(BaseModel):
@@ -158,6 +159,9 @@ class WorkspaceScanResponse(BaseModel):
 class LocalBootstrapResponse(BaseModel):
     server_url: str
     server_reachable: bool
+    local_device_name: str
+    local_hostname: str
+    local_platform: str
     device: DeviceRead | None = None
     projects: list[ProjectRead] = Field(default_factory=list)
 

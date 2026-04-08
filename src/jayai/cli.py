@@ -9,7 +9,7 @@ import uvicorn
 
 from .main import app
 from .local_main import app as local_app
-from .services.local_config import write_local_config
+from .services.local_config import ensure_local_config, write_local_config
 from .services.runner import probe_local_environment, scan_workspace
 
 
@@ -24,7 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     local = subparsers.add_parser("local-ui", help="Run the local UI and local runner")
     local.add_argument("--host", default="127.0.0.1")
     local.add_argument("--port", type=int, default=8310)
-    local.add_argument("--server-url", default="")
+    local.add_argument("--device-name", default="")
     local.add_argument("--open-browser", action="store_true")
 
     probe = subparsers.add_parser("probe", help="Probe local CLI/install/auth status")
@@ -44,8 +44,10 @@ def main() -> None:
         return
 
     if args.command == "local-ui":
-        if args.server_url:
-            write_local_config(args.server_url)
+        if args.device_name:
+            write_local_config(device_name=args.device_name)
+        else:
+            ensure_local_config()
         if args.open_browser:
             threading.Timer(
                 1.0,

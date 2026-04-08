@@ -32,8 +32,21 @@ def list_devices(db: Session = Depends(get_db)) -> list[Device]:
 
 @router.post("", response_model=DeviceRead, status_code=status.HTTP_201_CREATED)
 def register_device(payload: DeviceRegister, db: Session = Depends(get_db)) -> Device:
-    device = db.scalar(select(Device).where(Device.name == payload.name))
+    device = db.scalar(
+        select(Device).where(
+            Device.hostname == payload.hostname,
+            Device.platform == payload.platform,
+            Device.is_server == payload.is_server,
+        )
+    )
+    if not device:
+        device = db.scalar(select(Device).where(Device.name == payload.name))
+    elif device.name != payload.name:
+        name_conflict = db.scalar(select(Device).where(Device.name == payload.name, Device.id != device.id))
+        if name_conflict:
+            raise HTTPException(status_code=409, detail="device name already exists")
     if device:
+        device.name = payload.name
         device.hostname = payload.hostname
         device.platform = payload.platform
         device.is_server = payload.is_server

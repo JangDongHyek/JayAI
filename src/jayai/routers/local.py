@@ -36,7 +36,7 @@ from ..schemas import (
 )
 from ..services.git_ops import clone_project, is_git_repo, pull_project, save_and_push_project, status_project
 from ..services.job_manager import job_manager
-from ..services.local_config import get_server_url, read_local_config, write_local_config
+from ..services.local_config import ensure_local_config, get_server_url, write_local_config
 from ..services.runner import probe_local_environment, scan_workspace
 from ..services.server_api import ServerApiError, ServerClient
 
@@ -45,8 +45,9 @@ router = APIRouter()
 
 
 def _local_device_payload() -> dict[str, object]:
+    config = ensure_local_config()
     return {
-        "name": socket.gethostname().lower(),
+        "name": config["device_name"],
         "hostname": socket.gethostname(),
         "platform": platform.platform(),
         "is_server": False,
@@ -71,10 +72,14 @@ def _resolve_workspace_path(
         return str(Path(workspace_path).expanduser().resolve())
 
     bindings = detail["bindings"] if isinstance(detail, dict) else detail.bindings
-    own_binding = next((item for item in bindings if item["device_id"] == device_id), None) if isinstance(detail, dict) else next((item for item in bindings if item.device_id == device_id), None)
+    own_binding = (
+        next((item for item in bindings if item["device_id"] == device_id), None)
+        if isinstance(detail, dict)
+        else next((item for item in bindings if item.device_id == device_id), None)
+    )
     if own_binding:
         return own_binding["local_path"] if isinstance(own_binding, dict) else own_binding.local_path
-    raise HTTPException(status_code=400, detail="현재 기기 경로가 아직 저장되지 않았음")
+    raise HTTPException(status_code=400, detail="current device path is not configured yet")
 
 
 def _active_binding_from_detail(detail: dict[str, object], device_id: int) -> WorkspaceBindingRead | None:
@@ -115,26 +120,26 @@ def _render_session_status(
 ) -> str:
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
-        f"# {project['title']} 상태 정리",
+        f"# {project['title']} Status",
         "",
-        f"- 저장 시각: {timestamp}",
-        f"- 기기: {device_name}",
-        f"- 슬러그: {project['slug']}",
-        f"- 저장소: {project.get('repo_url') or '(없음)'}",
-        f"- 브랜치: {project.get('default_branch') or 'main'}",
-        f"- 로컬 경로: {workspace_path}",
+        f"- Saved at: {timestamp}",
+        f"- Device: {device_name}",
+        f"- Project slug: {project['slug']}",
+        f"- Repository: {project.get('repo_url') or '(none)'}",
+        f"- Branch: {project.get('default_branch') or 'main'}",
+        f"- Local path: {workspace_path}",
         "",
-        "## 프로젝트 설명",
-        project_brief.strip() or "(미작성)",
+        "## Project Brief",
+        project_brief.strip() or "(empty)",
         "",
-        "## 현재 상태",
-        current_status.strip() or "(미작성)",
+        "## Current Status",
+        current_status.strip() or "(empty)",
         "",
-        "## 다음 작업",
-        next_steps.strip() or "(미작성)",
+        "## Next Steps",
+        next_steps.strip() or "(empty)",
         "",
-        "## 메모",
-        notes.strip() or "(미작성)",
+        "## Notes",
+        notes.strip() or "(empty)",
         "",
     ]
     return "\n".join(lines)
@@ -147,28 +152,27 @@ def health() -> dict[str, str]:
 
 @router.get("/api/local/config", response_model=LocalConfigRead)
 def get_local_config() -> LocalConfigRead:
-    return LocalConfigRead(**read_local_config())
+    return LocalConfigRead(**ensure_local_config())
 
 
 @router.post("/api/local/config", response_model=LocalConfigRead)
 def save_local_config(payload: LocalConfigWrite) -> LocalConfigRead:
-    return LocalConfigRead(**write_local_config(payload.server_url))
+    return LocalConfigRead(**write_local_config(device_name=payload.device_name))
 
 
 @router.get("/api/local/status", response_model=LocalStatusResponse)
 def local_status() -> LocalStatusResponse:
-    config = read_local_config()
-    server_url = config.get("server_url", "")
+    config = ensure_local_config()
+    server_url = config["server_url"]
     server_reachable = False
-    if server_url:
-        try:
-            server_reachable = ServerClient(server_url).health().get("status") == "ok"
-        except ServerApiError:
-            server_reachable = False
+    try:
+        server_reachable = ServerClient(server_url).health().get("status") == "ok"
+    except ServerApiError:
+        server_reachable = False
     return LocalStatusResponse(
         server_url=server_url,
         server_reachable=server_reachable,
-        local_device_name=socket.gethostname().lower(),
+        local_device_name=config["device_name"],
         local_hostname=socket.gethostname(),
         local_platform=platform.platform(),
     )
@@ -176,22 +180,25 @@ def local_status() -> LocalStatusResponse:
 
 @router.get("/api/local/bootstrap", response_model=LocalBootstrapResponse)
 def bootstrap() -> LocalBootstrapResponse:
-    config = read_local_config()
-    server_url = config.get("server_url", "")
-    if not server_url:
-        return LocalBootstrapResponse(server_url="", server_reachable=False)
-
+    config = ensure_local_config()
+    server_url = config["server_url"]
+    base_payload = {
+        "server_url": server_url,
+        "local_device_name": config["device_name"],
+        "local_hostname": socket.gethostname(),
+        "local_platform": platform.platform(),
+    }
     try:
         client = ServerClient(server_url)
         server_reachable = client.health().get("status") == "ok"
         device = _register_local_device(client)
         projects = client.list_projects()
     except (RuntimeError, ServerApiError):
-        return LocalBootstrapResponse(server_url=server_url, server_reachable=False)
+        return LocalBootstrapResponse(server_reachable=False, **base_payload)
 
     return LocalBootstrapResponse(
-        server_url=server_url,
         server_reachable=server_reachable,
+        **base_payload,
         device=DeviceRead.model_validate(device),
         projects=[ProjectRead.model_validate(item) for item in projects],
     )
@@ -246,7 +253,7 @@ def get_local_project_detail(project_id: int) -> LocalProjectDetailRead:
 def save_binding(project_id: int, payload: GitActionRequest) -> WorkspaceBindingRead:
     workspace_path = payload.workspace_path
     if not workspace_path:
-        raise HTTPException(status_code=400, detail="저장할 경로가 비어 있음")
+        raise HTTPException(status_code=400, detail="workspace path is empty")
     resolved = str(Path(workspace_path).expanduser().resolve())
     try:
         client = _server_client()
@@ -284,7 +291,7 @@ def load_project(project_id: int, payload: ProjectLoadRequest) -> ProjectSyncRea
             result = pull_project(path_obj, project["default_branch"])
         else:
             if not project.get("repo_url"):
-                raise HTTPException(status_code=400, detail="repo 주소가 없음")
+                raise HTTPException(status_code=400, detail="repo URL is missing")
             result = clone_project(project["repo_url"], path_obj, project["default_branch"])
 
         _bind_current_device(
@@ -334,7 +341,7 @@ def save_project(project_id: int, payload: ProjectSaveRequest) -> ProjectSyncRea
         )
         path_obj = Path(workspace_path)
         if not path_obj.exists() or not path_obj.is_dir():
-            raise HTTPException(status_code=400, detail="저장할 로컬 경로가 없음")
+            raise HTTPException(status_code=400, detail="workspace path does not exist")
 
         handoff_payload = {
             "project_brief": payload.project_brief.strip(),
@@ -376,12 +383,14 @@ def save_project(project_id: int, payload: ProjectSaveRequest) -> ProjectSyncRea
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     output = "\n\n".join(
-        part for part in [
-            f"인계 파일: {status_file}",
+        part
+        for part in [
+            f"Status file: {status_file}",
             git_result.summary,
             git_result.stdout,
             git_result.stderr,
-        ] if part
+        ]
+        if part
     )
     return ProjectSyncRead(
         action="save",
@@ -397,7 +406,7 @@ def save_project(project_id: int, payload: ProjectSaveRequest) -> ProjectSyncRea
 @router.post("/api/local/projects/{project_id}/git/{action}", response_model=GitActionRead)
 def run_git_action(project_id: int, action: str, payload: GitActionRequest) -> GitActionRead:
     if action not in {"clone", "pull", "status"}:
-        raise HTTPException(status_code=404, detail="지원하지 않는 git 동작")
+        raise HTTPException(status_code=404, detail="unsupported git action")
 
     try:
         client = _server_client()
@@ -409,7 +418,7 @@ def run_git_action(project_id: int, action: str, payload: GitActionRequest) -> G
 
         if action == "clone":
             if not project.get("repo_url"):
-                raise HTTPException(status_code=400, detail="repo 주소가 없음")
+                raise HTTPException(status_code=400, detail="repo URL is missing")
             result = clone_project(project["repo_url"], path_obj, project["default_branch"])
         elif action == "pull":
             result = pull_project(path_obj, project["default_branch"])
@@ -442,10 +451,10 @@ def start_execution(project_id: int, payload: ExecutionStartRequest) -> LocalJob
         handoff_text = "\n\n".join(
             part
             for part in [
-                f"[프로젝트 설명]\n{handoff['project_brief']}" if handoff.get("project_brief") else "",
-                f"[현재 상태]\n{handoff['current_status']}" if handoff.get("current_status") else "",
-                f"[다음 작업]\n{handoff['next_steps']}" if handoff.get("next_steps") else "",
-                f"[주의사항]\n{handoff['notes']}" if handoff.get("notes") else "",
+                f"[Project Brief]\n{handoff['project_brief']}" if handoff.get("project_brief") else "",
+                f"[Current Status]\n{handoff['current_status']}" if handoff.get("current_status") else "",
+                f"[Next Steps]\n{handoff['next_steps']}" if handoff.get("next_steps") else "",
+                f"[Notes]\n{handoff['notes']}" if handoff.get("notes") else "",
             ]
             if part
         ).strip()
